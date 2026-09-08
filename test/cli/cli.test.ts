@@ -1,6 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runCli, USAGE } from "../../src/cli/index.js";
 import { MEMORY_DIR, open } from "../../src/facade/index.js";
@@ -194,5 +196,26 @@ describe("nocetta CLI (Seam 8)", () => {
     const help = await runCli(["--help"]);
     expect(help.code).toBe(0);
     expect(help.out).toContain(USAGE);
+  });
+});
+
+describe("bin entrypoint (symlink regression)", () => {
+  it("runs when invoked through a package-manager bin symlink — never a silent exit 0", async () => {
+    // pnpm installs node_modules/<pkg> as a symlink: argv[1] keeps the link
+    // path while import.meta.url resolves the target. The guard compared them
+    // literally, so `npx nocetta …` exited 0 printing nothing. dist must be
+    // built for this test to have something to invoke; skip when it isn't.
+    const distCli = fileURLToPath(new URL("../../dist/cli/cli.js", import.meta.url));
+    if (!existsSync(distCli)) return;
+
+    const linkDir = mkdtempSync(join(tmpdir(), "nocetta-bin-"));
+    const link = join(linkDir, "nocetta");
+    symlinkSync(distCli, link);
+    try {
+      const out = execFileSync(process.execPath, [link, "check", "--root", repoRoot], { encoding: "utf8" });
+      expect(out).toMatch(/\d+ nodes · \d+ dirty/);
+    } finally {
+      rmSync(linkDir, { recursive: true, force: true });
+    }
   });
 });

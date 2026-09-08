@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import { TOOLS } from "./tools.js";
@@ -36,10 +37,21 @@ export async function main(): Promise<void> {
   await server.connect(new StdioServerTransport());
 }
 
-// Entrypoint-and-module guard: argv[1] routed through pathToFileURL so
-// URL-encoding (spaces, non-ASCII) and Windows drive letters compare equal
-// to import.meta.url — the plain string comparison silently fails on those.
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+// Entrypoint-and-module guard: argv[1] realpath'd through pathToFileURL so
+// URL-encoding (spaces, non-ASCII), Windows drive letters, and package-manager
+// bin symlinks (pnpm installs node_modules/<pkg> as a symlink; argv[1] keeps
+// the link path while import.meta.url resolves the target) all compare equal
+// to import.meta.url. A silently-false guard means `npx nocetta` exits 0
+// printing nothing — worse than a crash.
+function isEntrypoint(): boolean {
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1] ?? "")).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isEntrypoint()) {
   main().catch((err: unknown) => {
     // stderr only — stdout is the MCP protocol channel.
     console.error(err instanceof Error ? (err.stack ?? err.message) : String(err));
