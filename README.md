@@ -12,6 +12,8 @@ Sibling project to `sandkeep`. Positioned against Mem0 (vector retrieval + LLM-j
 ADD/UPDATE/DELETE, destructive on contradiction, no code anchoring) and Zep/Graphiti
 (bitemporal knowledge graph, but still no code anchor). See `PLAN.md` for the full thesis,
 the competitive wedge, and the slice-by-slice build contract this repo implements.
+`BACKLOG.md` is the contract for the next phase: guiding lights + the seam-by-seam
+path from proven spike to droppable memory.
 
 ## Thesis
 
