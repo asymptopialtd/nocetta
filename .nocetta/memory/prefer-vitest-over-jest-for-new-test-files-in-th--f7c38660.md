@@ -4,11 +4,11 @@ scope: global
 anchors: []
 edges: []
 validFrom: '2026-09-08T21:27:55.261Z'
-validTo: null
+validTo: '2026-09-08T22:52:57.289Z'
 txnTime: '2026-09-08T21:27:55.261Z'
 authority: default
 overrideReason: null
-retiredReason: null
+retiredReason: stray probe from the noise-discipline verification — captured to measure advisory noise, never a real decision; the second probe was retired at the time, this one was missed
 version: 1
 kind: value
 ---
