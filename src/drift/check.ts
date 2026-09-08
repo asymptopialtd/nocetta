@@ -1,4 +1,5 @@
 import { locateAnchor } from "../anchor/locate-any.js";
+import type { SymbolLocator } from "../anchor/locator.js";
 import type { MemoryNode } from "../store/types.js";
 import type { RepoState } from "./repo-state.js";
 
@@ -23,7 +24,7 @@ function isSuperseded(node: MemoryNode): boolean {
  * carries a `superseded-by` edge, since a superseded node is already
  * excluded from "current" and chasing its dependents further is moot.
  */
-export function check(nodes: MemoryNode[], repoState: RepoState): CheckResult {
+export function check(nodes: MemoryNode[], repoState: RepoState, locator?: SymbolLocator): CheckResult {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const dirty = new Set<string>();
   const reasons = new Map<string, string>();
@@ -43,7 +44,7 @@ export function check(nodes: MemoryNode[], repoState: RepoState): CheckResult {
         markDirty(node.id, `artifact missing: ${anchor.artifactPath}`);
         continue;
       }
-      const result = locateAnchor(anchor, source);
+      const result = locateAnchor(anchor, source, locator);
       if (!result.found) {
         markDirty(node.id, `symbol not found: ${anchor.locator}`);
       } else if (result.hashChanged) {
@@ -84,7 +85,7 @@ export function check(nodes: MemoryNode[], repoState: RepoState): CheckResult {
 /** Minimal "current" view for Slice 3: every node not flagged dirty. Slice 4
  * builds this out into the full candidate → resolve-tip → scope/window →
  * rank → budget pipeline; this is the drift-exclusion half of that. */
-export function currentNodes(nodes: MemoryNode[], repoState: RepoState): MemoryNode[] {
-  const { dirty } = check(nodes, repoState);
+export function currentNodes(nodes: MemoryNode[], repoState: RepoState, locator?: SymbolLocator): MemoryNode[] {
+  const { dirty } = check(nodes, repoState, locator);
   return nodes.filter((n) => !dirty.has(n.id));
 }

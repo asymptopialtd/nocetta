@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import Parser from "tree-sitter";
 import TypeScript from "tree-sitter-typescript";
 import type { SymbolInfo, SymbolKind } from "./types.js";
+import type { SymbolLocator } from "./locator.js";
 
 const parser = new Parser();
 // Pass the whole Language wrapper (not just `.language`) — the JS runtime
@@ -122,3 +123,9 @@ export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
   for (const child of tree.rootNode.namedChildren) visit(child, []);
   return symbols;
 }
+
+/**
+ * nocetta's default {@link SymbolLocator}: the built-in native tree-sitter
+ * extractor above. Used everywhere unless a host injects its own locator.
+ */
+export const nativeLocator: SymbolLocator = { extractSymbols };

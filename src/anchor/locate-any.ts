@@ -1,5 +1,6 @@
 import { locateContent } from "./content.js";
 import { locate } from "./locate.js";
+import type { SymbolLocator } from "./locator.js";
 import type { Anchor, LocateResult } from "./types.js";
 
 const CODE_EXTENSIONS = new Set([".ts", ".tsx"]);
@@ -15,6 +16,6 @@ function extensionOf(path: string): string {
  * artifacts. Slice 3's check() calls this instead of the code-only `locate`
  * so it works uniformly across `claim`/`lore-fact` anchors.
  */
-export function locateAnchor(anchor: Anchor, sourceAfter: string): LocateResult {
-  return CODE_EXTENSIONS.has(extensionOf(anchor.artifactPath)) ? locate(anchor, sourceAfter) : locateContent(anchor, sourceAfter);
+export function locateAnchor(anchor: Anchor, sourceAfter: string, locator?: SymbolLocator): LocateResult {
+  return CODE_EXTENSIONS.has(extensionOf(anchor.artifactPath)) ? locate(anchor, sourceAfter, locator) : locateContent(anchor, sourceAfter);
 }

@@ -1,3 +1,4 @@
+import type { SymbolLocator } from "../anchor/locator.js";
 import { check } from "../drift/check.js";
 import type { RepoState } from "../drift/repo-state.js";
 import type { MemoryNode } from "../store/types.js";
@@ -58,6 +59,8 @@ export interface FilterLiveOptions {
   /** Full node set + repo state, needed to recompute dirtiness live. */
   nodes: MemoryNode[];
   repoState: RepoState;
+  /** Optional injected code parser; defaults to nocetta's built-in locator. */
+  locator?: SymbolLocator;
 }
 
 /** Stage 3: scope + valid-time window + live dirtiness. A node's scope
@@ -67,7 +70,7 @@ export interface FilterLiveOptions {
  * excluded here even though its stored valid-time window hasn't (yet, that's
  * Slice 5) been closed. */
 export function filterLive(candidates: Candidate[], opts: FilterLiveOptions): Candidate[] {
-  const dirty = check(opts.nodes, opts.repoState).dirty;
+  const dirty = check(opts.nodes, opts.repoState, opts.locator).dirty;
   const now = opts.now ?? new Date().toISOString();
   return candidates.filter(({ node }) => {
     if (dirty.has(node.id)) return false;
