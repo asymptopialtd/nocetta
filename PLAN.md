@@ -64,6 +64,15 @@ paraphrase-shaped miss. Keyword + structural retrieval carry the spike.
 - **Bitemporal.** Every node carries a **valid-time** window (from the anchor: `[created, hash-changed)`)
   and a **transaction-time** (append-only write time). "Current" is a *derived view*, never the
   stored form. This is what makes revert trivial and staleness structural.
+- **History relies on git; nocetta owns only the *semantic* history.** Complete byte-level edit
+  history is delegated to git — the store is meant to be **committed**, and `git log`/`git diff`/
+  `git blame` are the ambient, always-on "what changed / who / when" view. nocetta's internal
+  bitemporal layer deliberately covers only what git *can't* express: supersession chains and
+  valid-time ("what was canon as-of date T"). So in-place edits may overwrite destructively — nocetta
+  does not reinvent version control — and its history is the semantic complement to git's syntactic
+  history, not a redundant copy. Rationale: git is assumed near-universal in agent workflows (coding
+  and non-coding alike). Consequence: a real deployment commits `.nocetta/`; an *un-committed* store
+  has no ambient history and only supersession-modeled changes survive, by deliberate query.
 - **Supersession is an edge, not a delete.** `superseded-by` (old→new) propagates authority forward;
   `anchored-to` propagates dirtiness inward. Different traversal semantics — do not merge them.
   Dirty-propagation **stops at** superseded nodes. The supersession relation is a **DAG** (acyclic,
