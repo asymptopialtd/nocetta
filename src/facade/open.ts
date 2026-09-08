@@ -8,6 +8,9 @@ import { check } from "../drift/check.js";
 import type { RepoState } from "../drift/repo-state.js";
 import { contextTriggered, searchMemory } from "../retrieval/search.js";
 import type { SearchQuery, SearchResult } from "../retrieval/types.js";
+import { reAnchor } from "../repair/re-anchor.js";
+import type { ReAnchorRequest } from "../repair/re-anchor.js";
+import { retire } from "../repair/retire.js";
 import { findConflicts } from "../supersede/conflicts.js";
 import type { Conflict } from "../supersede/conflicts.js";
 import { overrideValue } from "../supersede/override.js";
@@ -28,8 +31,8 @@ export interface OpenOptions {
 
 /**
  * One "what needs attention" surface: drift (reason verbatim) and
- * cross-authority conflicts. It deliberately dead-ends at the report —
- * re-anchor/retire are Seam 4's repair actions, not this report's job.
+ * cross-authority conflicts. It reports; it does not repair — the facade's
+ * reAnchor/retire are the actions that close what this list opens.
  */
 export interface Worklist {
   dirty: { node: MemoryNode; reason: string }[];
@@ -39,8 +42,8 @@ export interface Worklist {
 /**
  * The whole loop behind one object. The engine's functions stay pure
  * `(nodes[], repoState, ...)`; this is the stateful shell a host actually
- * holds — capture → recall → drift in a single handle, with the store
- * location derived from repoRoot instead of threaded through every call.
+ * holds — capture → recall → drift → repair in a single handle, with the
+ * store location derived from repoRoot instead of threaded through every call.
  */
 export interface Nocetta {
   readonly repoRoot: string;
@@ -61,6 +64,15 @@ export interface Nocetta {
   supersede(oldId: string, next: MemoryNode, opts?: SupersedeOptions): { old: MemoryNode; next: MemoryNode };
   override(oldId: string, next: MemoryNode, reason: string, opts?: SupersedeOptions): { old: MemoryNode; next: MemoryNode };
   worklist(opts?: { now?: string }): Worklist;
+  /** Identity repair, in place: the node's matching anchor is re-resolved
+   * against the artifact's current source (the same exact-match machinery as
+   * remember) and its locator+hash rewritten. Body and valid-time window are
+   * untouched — the belief didn't change. */
+  reAnchor(nodeId: string, req: ReAnchorRequest): MemoryNode;
+  /** Close the node's valid-time window (validTo = now) and record the
+   * mandatory reason. Not a supersession: the node simply leaves "current"
+   * and stays visible to asOf. */
+  retire(nodeId: string, reason: string): MemoryNode;
   asOf(atTxnTime: string): MemoryNode[];
 }
 
@@ -171,6 +183,18 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
           .sort((a, b) => a.node.id.localeCompare(b.node.id)),
         conflicts: findConflicts(cache),
       };
+    },
+
+    reAnchor(nodeId: string, req: ReAnchorRequest): MemoryNode {
+      const repaired = reAnchor(memoryDir, cache, nodeId, req, { repoRoot });
+      reload();
+      return repaired;
+    },
+
+    retire(nodeId: string, reason: string): MemoryNode {
+      const retired = retire(memoryDir, cache, nodeId, reason);
+      reload();
+      return retired;
     },
 
     asOf(atTxnTime: string): MemoryNode[] {

@@ -22,6 +22,10 @@ export interface MemoryNode {
   txnTime: string;
   authority: Authority;
   overrideReason: string | null;
+  /** Why the node was retired — set only by retire(), alongside closing
+   * validTo. Optional with a null default (same reasoning as `version`):
+   * files written before the field existed must still parse as-is. */
+  retiredReason?: string | null;
   body: string;
   /** Frontmatter format version (createNode stamps 1). Optional: files
    * written before the field existed must still parse as-is. */

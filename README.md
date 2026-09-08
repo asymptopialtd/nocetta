@@ -58,6 +58,7 @@ validTo: string | null        # ISO 8601 — valid-time end (null = still valid)
 txnTime: string                # ISO 8601 — append-only write (transaction) time
 authority: invariant | default
 overrideReason: string | null # set only when a `default` authority is overridden
+retiredReason: string | null  # set only when retire() closed the node — why its valid-time window shut
 version: number               # frontmatter format version (createNode stamps 1)
 ---
 

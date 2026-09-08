@@ -218,6 +218,40 @@ describe("open() facade + loadRepoState (Seam 2)", () => {
     expect(conflicts[0]!.defaultNode.id).toBe("def");
   });
 
+  it("reAnchor repairs the drifted anchor in place through the facade — cache current without a manual reload", () => {
+    const nc = open(repoRoot);
+    const { node: captured } = nc.remember({ body: "foo returns 1", kind: "claim", artifactPath: FOO_PATH, symbolName: "foo" });
+
+    writeFileSync(join(repoRoot, FOO_PATH), FOO_EDITED, "utf8");
+    expect(nc.worklist().dirty.map((d) => d.node.id)).toEqual([captured.id]);
+
+    const repaired = nc.reAnchor(captured.id, { symbolName: "foo" });
+    const fresh = extractSymbols(FOO_PATH, FOO_EDITED).find((s) => s.name === "foo")!;
+    expect(repaired.anchors).toEqual([{ locator: `${FOO_PATH} › function foo`, hash: fresh.hash, artifactPath: FOO_PATH }]);
+    // identity repair only: the belief and its temporal state are the old ones
+    expect(repaired.body).toBe(captured.body);
+    expect(repaired.validFrom).toBe(captured.validFrom);
+    expect(repaired.validTo).toBe(captured.validTo);
+
+    // the fold was rebuilt by the mutation itself: no reload() in sight, and
+    // the worklist the drift opened is closed
+    expect(nc.nodes()).toEqual([repaired]);
+    expect(nc.worklist().dirty).toEqual([]);
+  });
+
+  it("retire closes the node in place through the facade: out of current, still visible to asOf, cache current", () => {
+    const nc = open(repoRoot);
+    const { node: captured } = nc.remember({ body: "foo returns the number one", kind: "claim", artifactPath: FOO_PATH, symbolName: "foo" });
+
+    const retired = nc.retire(captured.id, "foo is gone; the claim has no subject");
+    expect(retired.retiredReason).toBe("foo is gone; the claim has no subject");
+    expect(retired.validTo).not.toBeNull();
+    expect(nc.nodes()).toEqual([retired]);
+
+    expect(nc.search({ filesInPlay: [FOO_PATH] })).toEqual([]);
+    expect(nc.asOf("2027-01-01T00:00:00.000Z").map((n) => n.id)).toEqual([captured.id]);
+  });
+
   it("loadRepoState reads exactly the anchored set — no extras — and missing artifacts stay absent", () => {
     const claim = node({
       id: "claim-1",

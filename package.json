@@ -48,6 +48,10 @@
       "types": "./dist/capture/index.d.ts",
       "default": "./dist/capture/index.js"
     },
+    "./repair": {
+      "types": "./dist/repair/index.d.ts",
+      "default": "./dist/repair/index.js"
+    },
     "./package.json": "./package.json"
   },
   "engines": {
