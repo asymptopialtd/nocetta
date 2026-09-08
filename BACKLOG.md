@@ -269,6 +269,14 @@ never truth. No commit until measured.
   real store breaks.
 - **Windows verification** — path normalization is preventive, untested; promote to
   actually tested just before external closed alpha (He, 2026-09-08).
+- **Retrofit/onboarding scaffold (`nocetta init`, doc importers)** — deferred on
+  principle (He, 2026-09-09): nocetta is best at building memories ground-up, where
+  every capture has real consult demand behind it; retroactive bulk import produces
+  unanchored prose with no drift pressure. A fresh repo needs no init — discovery
+  creates the store on first remember, and the server instructions carry the loop.
+  Promote only if a real retrofit dogfood shows an agent flailing for a starting
+  scaffold; the workflow until then is the onboarding pass in chat (rules first,
+  hot-path claims second, stop).
 - **Commercial artifact hardening** — when distribution extends beyond trusted
   machines: bundle + minify (esbuild), license terms/keying; a native core (napi/SEA)
   only if opacity ever becomes existential. The design itself is already public —
