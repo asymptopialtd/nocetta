@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
+import { resolveRoot } from "../facade/root.js";
 import { TOOLS } from "./tools.js";
 
 const SERVER_NAME = "nocetta";
@@ -28,11 +29,11 @@ export function createNocettaServer(repoRoot: string): McpServer {
   return server;
 }
 
-/** The repo root is the deployment decision, so it stays ambient: NOCETTA_ROOT
+/** The repo root is discovered, not declared (facade/root.ts): NOCETTA_ROOT
  * when the host launches the server outside the repo, else cwd (the usual case
  * — an MCP client starts the server inside the project it's remembering for). */
 export async function main(): Promise<void> {
-  const repoRoot = process.env.NOCETTA_ROOT ?? process.cwd();
+  const repoRoot = process.env.NOCETTA_ROOT ?? resolveRoot();
   const server = createNocettaServer(repoRoot);
   await server.connect(new StdioServerTransport());
 }

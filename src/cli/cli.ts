@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { resolveRoot } from "../facade/root.js";
 import { resolve } from "node:path";
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -37,7 +38,8 @@ usage:
 
 --strict makes check exit 1 when anything needs attention (dirty, conflicts,
 or issues); without it only an unreadable store fails — drift is normal in a
-moving repo, and CI passes --strict. --root defaults to the working directory.
+moving repo, and CI passes --strict. --root defaults to discovery: the nearest
+ancestor holding .nocetta/ or .git/, else the working directory.
 `;
 
 const COMMANDS = ["check", "worklist", "ls"] as const;
@@ -104,7 +106,7 @@ export async function runCli(argv: string[]): Promise<CliResult> {
   if (args.command === null) return { code: 1, out: `no command given\n\n${USAGE}` };
 
   // The repo root is a deployment decision, ambient like the MCP server's.
-  const root = resolve(args.root ?? process.cwd());
+  const root = resolveRoot({ explicit: args.root ?? undefined });
   try {
     if (args.command === "check") return checkCommand(root, args.strict);
     if (args.command === "worklist") return worklistCommand(root);

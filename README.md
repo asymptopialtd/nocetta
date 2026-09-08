@@ -40,21 +40,27 @@ Nocetta is closed source for now (`private: true`, UNLICENSED): it ships as a ta
 trusted projects — `pnpm pack` in a checkout, then a `file:` install or a private registry
 (see BACKLOG.md for the posture). Two ways in:
 
-**For an agent — the MCP server.** Point an MCP client at the dist and set `NOCETTA_ROOT`
-to the repo being remembered (omit it when the client already starts servers in the
-project's cwd):
+**For an agent — the MCP server.** Point an MCP client at the dist; that's the whole
+config. The repo root is *discovered*, not declared — the server walks up from its
+working directory to the nearest ancestor holding `.nocetta/` or `.git/`, the way git
+finds a repo — so one registration serves every project, and memories always land in
+that project's `<repo>/.nocetta/memory/` (committed to the project's git, never
+anywhere global):
 
 ```json
 {
   "mcpServers": {
     "nocetta": {
       "command": "node",
-      "args": ["/path/to/nocetta/dist/mcp/server.js"],
-      "env": { "NOCETTA_ROOT": "/path/to/your/repo" }
+      "args": ["/path/to/nocetta/dist/mcp/server.js"]
     }
   }
 }
 ```
+
+`NOCETTA_ROOT` (env) and `--root` (CLI) are overrides for cross-repo tooling and
+tests — never a requirement. Set one only when the working directory is not inside
+the project you mean to remember.
 
 The server registers six tools whose descriptions teach themselves; copy `skills/nocetta/`
 into the project for the workflow contract (when to remember, when to recall, the worklist).
