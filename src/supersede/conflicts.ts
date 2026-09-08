@@ -44,8 +44,13 @@ export function findConflicts(nodes: MemoryNode[]): Conflict[] {
 
   const conflicts: Conflict[] = [];
   for (const [subject, group] of groups) {
-    const invariants = group.filter((n) => n.authority === "invariant");
-    const defaults = group.filter((n) => n.authority === "default");
+    // Entity nodes are referents (a symbol table for prose), not assertions —
+    // they cannot contradict a policy, and grouping them in surfaces phantom
+    // conflicts (dogfood: every global invariant flagged against the
+    // "Nocetta" entity). Only claim/value/lore-fact parties conflict.
+    const parties = group.filter((n) => n.kind !== "entity");
+    const invariants = parties.filter((n) => n.authority === "invariant");
+    const defaults = parties.filter((n) => n.authority === "default");
     for (const invariantNode of invariants) {
       for (const defaultNode of defaults) {
         if (!directlyRelated(invariantNode, defaultNode)) {

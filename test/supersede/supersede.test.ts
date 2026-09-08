@@ -129,6 +129,12 @@ describe("findConflicts", () => {
     const b = node({ id: "b", scope: "core", authority: "default" });
     expect(findConflicts([a, b])).toEqual([]);
   });
+
+  it("never flags an entity as a conflict party — a referent cannot contradict a policy", () => {
+    const policy = node({ id: "policy", kind: "value", scope: "global", authority: "invariant" });
+    const referent = node({ id: "ent", kind: "entity", scope: "global", authority: "default", body: "Nocetta" });
+    expect(findConflicts([policy, referent])).toEqual([]);
+  });
 });
 
 describe("retconImpact", () => {
