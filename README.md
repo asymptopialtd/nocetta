@@ -56,6 +56,7 @@ validTo: string | null        # ISO 8601 — valid-time end (null = still valid)
 txnTime: string                # ISO 8601 — append-only write (transaction) time
 authority: invariant | default
 overrideReason: string | null # set only when a `default` authority is overridden
+version: number               # frontmatter format version (createNode stamps 1)
 ---
 
 Body text (prose). For `claim`/`lore-fact` nodes this is the asserted content; for `value`

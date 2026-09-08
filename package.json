@@ -40,6 +40,10 @@
       "types": "./dist/safety/index.d.ts",
       "default": "./dist/safety/index.js"
     },
+    "./capture": {
+      "types": "./dist/capture/index.d.ts",
+      "default": "./dist/capture/index.js"
+    },
     "./package.json": "./package.json"
   },
   "engines": {
