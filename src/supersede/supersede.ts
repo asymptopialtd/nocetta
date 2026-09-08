@@ -5,6 +5,10 @@ export interface SupersedeOptions {
    * fresh node that returns to an earlier belief, never an edge back to the
    * original (the supersession relation stays acyclic). */
   restates?: string;
+  /** Moment of supersession (ISO 8601). Defaults to now; exposed for
+   * deterministic tests. Stamps old.validTo (closing its valid-time window)
+   * and next.validFrom/next.txnTime (opening the new one). */
+  now?: string;
 }
 
 /** Would adding `fromId --superseded-by--> toId` create a cycle, i.e. is
@@ -28,8 +32,10 @@ function wouldCycle(nodes: readonly MemoryNode[], fromId: string, toId: string):
  * Returns updated copies of both nodes for the caller to persist (via
  * store.writeNode) — supersede() itself does no I/O.
  *
- * - old gets `superseded-by -> next.id` (propagates authority forward).
- * - next gets `supersedes -> old.id`, and `restates -> opts.restates` if given.
+ * - old gets `superseded-by -> next.id` (propagates authority forward), and
+ *   its valid-time window closes: `validTo = now`.
+ * - next gets `supersedes -> old.id`, and `restates -> opts.restates` if
+ *   given; its valid-time window opens: `validFrom = txnTime = now`.
  * - Guards: old must not already be superseded (fan-out is disallowed — a
  *   fact has exactly one next version); the new edge must not close a cycle
  *   (fan-in — multiple olds superseded by the same new — is fine and needs
@@ -50,11 +56,13 @@ export function supersede(
     throw new Error(`supersede: would create a cycle ("${next.id}" is already downstream of "${oldId}")`);
   }
 
+  const now = opts.now ?? new Date().toISOString();
+
   const newEdges: EdgeRef[] = [...next.edges, { type: "supersedes", target: oldId }];
   if (opts.restates) newEdges.push({ type: "restates", target: opts.restates });
 
   return {
-    old: { ...old, edges: [...old.edges, { type: "superseded-by", target: next.id }] },
-    next: { ...next, edges: newEdges },
+    old: { ...old, edges: [...old.edges, { type: "superseded-by", target: next.id }], validTo: now },
+    next: { ...next, edges: newEdges, validFrom: now, txnTime: now },
   };
 }

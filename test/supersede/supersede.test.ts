@@ -30,6 +30,19 @@ describe("supersede", () => {
     expect(a.edges).toEqual([]);
   });
 
+  it("stamps valid-time and txn-time: old.validTo closes, next.validFrom/txnTime open, at `now`", () => {
+    const a = node({ id: "a", txnTime: "2026-01-01T00:00:00.000Z", validFrom: "2026-01-01T00:00:00.000Z" });
+    const b = node({ id: "b" });
+    const now = "2026-06-01T00:00:00.000Z";
+    const { old, next } = supersede([a], "a", b, { now });
+
+    expect(old.validTo).toBe(now);
+    expect(old.txnTime).toBe("2026-01-01T00:00:00.000Z"); // append-only: original write time never moves
+    expect(next.validFrom).toBe(now);
+    expect(next.txnTime).toBe(now);
+    expect(next.validTo).toBeNull();
+  });
+
   it("records restates provenance for a walk-back node", () => {
     const a = node({ id: "a" });
     const a2 = node({ id: "a2" });
