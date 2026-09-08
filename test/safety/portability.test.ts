@@ -50,7 +50,7 @@ function freshDir(prefix: string): string {
 
 describe("files-sufficient portability proof", () => {
   it("reconstructs identical live 'current' state after tarring, wiping, and re-extracting — no index survives", () => {
-    const originalDir = freshDir("holdfast-portability-src-");
+    const originalDir = freshDir("nocetta-portability-src-");
 
     const billingPath = "src/billing.ts";
     const billingSource = "export function calculateTotal(): number {\n  return 1;\n}\n";
@@ -80,11 +80,11 @@ describe("files-sufficient portability proof", () => {
 
     // tar the memory directory, then wipe it completely — nothing survives
     // but the archive itself.
-    const tarPath = join(tmpdir(), `holdfast-portability-${process.pid}-${Date.now()}.tar`);
+    const tarPath = join(tmpdir(), `nocetta-portability-${process.pid}-${Date.now()}.tar`);
     execFileSync("tar", ["-cf", tarPath, "-C", originalDir, "."]);
     rmSync(originalDir, { recursive: true, force: true });
 
-    const restoredDir = freshDir("holdfast-portability-dst-");
+    const restoredDir = freshDir("nocetta-portability-dst-");
     execFileSync("tar", ["-xf", tarPath, "-C", restoredDir]);
     rmSync(tarPath, { force: true });
 

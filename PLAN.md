@@ -1,7 +1,7 @@
-# Holdfast — spike plan
+# Nocetta — spike plan
 
-> A *holdfast* is the root-like structure by which seaweed anchors to rock. This is an
-> anchored, bitemporal, DAG memory system for coding agents. Sibling project to `sandkeep`.
+> Nocetta is an anchored, bitemporal, DAG memory system for coding agents — a memory node
+> tied to a real code artifact that detects its own staleness. Sibling project to `sandkeep`.
 
 This document is the **contract for the build**. It is settled design; implement it slice by
 slice, commit each slice, run the tests each slice defines. Do not redesign — if a decision
@@ -100,7 +100,7 @@ paraphrase-shaped miss. Keyword + structural retrieval carry the spike.
 `tree-sitter` + `tree-sitter-typescript`; fall back to `web-tree-sitter` wasm if native build
 fails — document which). `README.md` (thesis + wedge, short). The memory file-format spec written
 down. `pnpm test` runs and passes an empty suite.
-_Commit: `chore: scaffold holdfast spike (ts + tree-sitter + vitest)`_
+_Commit: `chore: scaffold nocetta spike (ts + tree-sitter + vitest)`_
 
 **Slice 1 — Anchor identity & relocation (THE CRUX).** Parse a TS file with tree-sitter; enumerate
 symbols (functions, classes, methods, exported consts) with a stable symbol path; compute a

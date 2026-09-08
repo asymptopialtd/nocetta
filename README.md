@@ -1,8 +1,8 @@
-# Holdfast
+# Nocetta
 
-> A *holdfast* is the root-like structure by which seaweed anchors to rock.
+> Anchored, bitemporal memory for coding agents — facts that know when they've gone stale.
 
-Holdfast is an anchored, bitemporal, DAG memory system for coding agents. It is a spike:
+Nocetta is an anchored, bitemporal, DAG memory system for coding agents. It is a spike:
 a from-scratch proof that a memory node tied to a real code artifact (a symbol, located
 by tree-sitter, with a normalized content hash) can detect its own staleness deterministically
 — no LLM in the correctness path — and that retrieval can resolve to a live, non-superseded
@@ -34,7 +34,7 @@ from the files alone, with no database and no runtime.
 
 ## Memory file format
 
-One markdown file per memory node, YAML frontmatter + body, under `.holdfast/memory/<id>.md`:
+One markdown file per memory node, YAML frontmatter + body, under `.nocetta/memory/<id>.md`:
 
 ```yaml
 ---

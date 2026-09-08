@@ -24,7 +24,7 @@ function node(overrides: Partial<MemoryNode> & { id: string }): MemoryNode {
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "holdfast-never-leak-"));
+  dir = mkdtempSync(join(tmpdir(), "nocetta-never-leak-"));
 });
 
 afterEach(() => {

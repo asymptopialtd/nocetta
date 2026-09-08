@@ -8,7 +8,7 @@ import type { MemoryNode } from "../../src/store/index.js";
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "holdfast-store-"));
+  dir = mkdtempSync(join(tmpdir(), "nocetta-store-"));
 });
 
 afterEach(() => {

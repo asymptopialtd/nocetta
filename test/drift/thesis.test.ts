@@ -94,7 +94,7 @@ function baseNode(overrides: Partial<MemoryNode> & { id: string }): MemoryNode {
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "holdfast-thesis-"));
+  dir = mkdtempSync(join(tmpdir(), "nocetta-thesis-"));
 
   const calcTotalAnchor = anchorFor(BILLING_PATH, billingV0, `${BILLING_PATH} › function calculateTotal`);
   const finalizeAnchor = anchorFor(BILLING_PATH, billingV0, `${BILLING_PATH} › class Invoice › method finalize`);
