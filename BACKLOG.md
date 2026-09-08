@@ -214,11 +214,10 @@ A scripted eval may only be added later, and only by replaying recorded real ses
 
 ### Seam 7 — Skill kit + quickstart
 
-`skills/nocetta/SKILL.md` (when to remember, when to recall with files-in-play, how to
-read the worklist, never store transient state), an AGENTS.md snippet, and a README
-quickstart (install → MCP config → 60-second tour). Docs carry weight (light 8):
-workflow contract and rationale, not tutorials restating tool schemas. **Commit:**
-`docs(adopt): skill kit + quickstart — teach the loop, not the schemas`
+Landed: `skills/nocetta/SKILL.md` (the workflow contract — when to remember, when to
+recall with files-in-play, the worklist loop, capture rules) and `skills/nocetta/AGENTS.md`
+(the paste-in snippet), plus a README "Getting started" section: tarball install, MCP
+client config, a facade-driven 60-second tour, the CI gate snippet.
 
 ### Seam 8 — CLI + CI gate
 

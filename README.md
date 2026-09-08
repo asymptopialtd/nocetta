@@ -34,6 +34,123 @@ from the files alone, with no database and no runtime.
 4. **Entity graph grounded in anchors** — entities anchor to content artifacts and support
    retcon-propagation, which a purely conversational graph has no analog for.
 
+## Getting started
+
+Nocetta is closed source for now (`private: true`, UNLICENSED): it ships as a tarball to
+trusted projects — `pnpm pack` in a checkout, then a `file:` install or a private registry
+(see BACKLOG.md for the posture). Two ways in:
+
+**For an agent — the MCP server.** Point an MCP client at the dist and set `NOCETTA_ROOT`
+to the repo being remembered (omit it when the client already starts servers in the
+project's cwd):
+
+```json
+{
+  "mcpServers": {
+    "nocetta": {
+      "command": "node",
+      "args": ["/path/to/nocetta/dist/mcp/server.js"],
+      "env": { "NOCETTA_ROOT": "/path/to/your/repo" }
+    }
+  }
+}
+```
+
+The server registers six tools whose descriptions teach themselves; copy `skills/nocetta/`
+into the project for the workflow contract (when to remember, when to recall, the worklist).
+
+**For a human — the library + CLI.** Install the tarball
+(`pnpm add nocetta@file:./nocetta-0.0.1.tgz`); `import { open } from "nocetta"` hosts the
+whole loop, and `node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js` is
+the human/CI surface — the flag is load-bearing, since an installed dist sits behind a
+package-manager symlink and the entrypoint guard compares argv against the resolved
+module URL.
+
+### 60-second tour
+
+In a repo with a `fetchWithRetry` function in `src/retry.ts`:
+
+1. Capture a claim, anchored to the symbol it describes:
+
+   ```sh
+   node --input-type=module -e '
+   import { open } from "nocetta";
+   const nc = open(process.cwd());
+   const { node } = nc.remember({
+     body: "fetchWithRetry gives up after 3 attempts, then returns the cached response",
+     kind: "claim", artifactPath: "src/retry.ts", symbolName: "fetchWithRetry",
+   });
+   console.log(node.id, "·", node.anchors[0].locator);
+   '
+   ```
+
+   → `84e0a983-8dc7-4202-9f37-03db2f53ec25 · src/retry.ts › function fetchWithRetry`
+   (ids vary), and a markdown file under `.nocetta/memory/`.
+
+2. Recall by files in play:
+
+   ```sh
+   node --input-type=module -e '
+   import { open } from "nocetta";
+   for (const h of open(process.cwd()).search({ filesInPlay: ["src/retry.ts"] }))
+     console.log(h.node.body);
+   '
+   ```
+
+   → the retry fact, verbatim.
+
+3. Edit `fetchWithRetry`'s body — any change to the function.
+
+4. The gate goes red:
+
+   ```sh
+   node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js check --strict
+   ```
+
+   ```
+   dirty (1):
+     84e0a983  hash changed: src/retry.ts › function fetchWithRetry  (file: fetchwithretry-gives-up-after-3-attempts-then-re--84e0a983.md)
+   1 nodes · 1 dirty · 0 conflicts · 0 issues
+   ```
+
+   Exit 1 — and the fact has already excluded itself from recall. Staleness is
+   structural, not a vibe.
+
+5. The meaning survived the edit; the hash didn't. Re-anchor in place — the belief is
+   untouched, only its locator and hash are rewritten:
+
+   ```sh
+   node --input-type=module -e '
+   import { open } from "nocetta";
+   open(process.cwd()).reAnchor("84e0a983-8dc7-4202-9f37-03db2f53ec25", { symbolName: "fetchWithRetry" });
+   '
+   node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js check --strict
+   ```
+
+   → `1 nodes · 0 dirty · 0 conflicts · 0 issues`, exit 0.
+
+If the belief itself had changed, supersede; if its subject is gone, retire. Those are
+agent moves — the six MCP tools — and the skill file teaches when to reach for each.
+
+### For humans
+
+The CLI's `ls` browses the store one line per node; each memory is a markdown file under
+`.nocetta/memory/` — open them, hand-edit them (reads quarantine what they can't parse),
+git them.
+
+### CI
+
+```yaml
+memory-gate:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - run: pnpm install
+    - run: node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js check --strict
+```
+
+Dirty memories, unresolved conflicts, or a broken store fail the build.
+
 ## Memory file format
 
 One markdown file per memory node, YAML frontmatter + body, under
