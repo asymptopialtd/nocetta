@@ -265,3 +265,7 @@ never truth. No commit until measured.
   real store breaks.
 - **Windows verification** — path normalization is preventive, untested; promote to
   actually tested just before external closed alpha (He, 2026-09-08).
+- **Commercial artifact hardening** — when distribution extends beyond trusted
+  machines: bundle + minify (esbuild), license terms/keying; a native core (napi/SEA)
+  only if opacity ever becomes existential. The design itself is already public —
+  the moat is the store, the workflow, and the iteration speed.
