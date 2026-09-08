@@ -13,7 +13,8 @@ import type { Conflict } from "../supersede/conflicts.js";
 import { overrideValue } from "../supersede/override.js";
 import { supersede } from "../supersede/supersede.js";
 import type { SupersedeOptions } from "../supersede/supersede.js";
-import { readAll, writeNode } from "../store/store.js";
+import { readStore, writeNode } from "../store/store.js";
+import type { StoreIssue } from "../store/store.js";
 import type { MemoryNode } from "../store/types.js";
 
 /** Canonical store layout: every memory lives in `<repoRoot>/.nocetta/memory`. */
@@ -47,6 +48,10 @@ export interface Nocetta {
   reload(): void;
   /** The current in-memory node set — a rebuildable fold over the files. */
   nodes(): MemoryNode[];
+  /** The quarantine report from the last read: hand-broken store files that
+   * were skipped (with a reason), never deleted — files are truth, the report
+   * is advice. Refreshed by reload() and by every mutation (which reloads). */
+  issues(): StoreIssue[];
   search(q: SearchQuery): SearchResult[];
   contextTrigger(
     files: string[],
@@ -101,10 +106,14 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
   const memoryDir = join(repoRoot, MEMORY_DIR);
   const locator = opts.locator;
 
-  let cache: MemoryNode[] = readAll(memoryDir);
+  let cache: MemoryNode[] = [];
+  let quarantined: StoreIssue[] = [];
   const reload = (): void => {
-    cache = readAll(memoryDir);
+    const read = readStore(memoryDir);
+    cache = read.nodes;
+    quarantined = read.issues;
   };
+  reload();
 
   return {
     repoRoot,
@@ -113,6 +122,10 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
 
     nodes(): MemoryNode[] {
       return cache;
+    },
+
+    issues(): StoreIssue[] {
+      return quarantined;
     },
 
     search(q: SearchQuery): SearchResult[] {

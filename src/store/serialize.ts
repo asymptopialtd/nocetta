@@ -25,5 +25,24 @@ export function parseNode(text: string): MemoryNode {
     .join("\n")
     .trim();
   const frontmatter = (yaml.load(yamlText) ?? {}) as Omit<MemoryNode, "body">;
-  return { ...frontmatter, body };
+  return { ...normalizeTimestamps(frontmatter), body };
+}
+
+/**
+ * YAML 1.1 types an unquoted ISO timestamp as a Date — correct YAML, but the
+ * node model stores strings, and hand-edited files (the norm, not corruption)
+ * leave timestamps unquoted. Normalize at the parse boundary so a Date from
+ * disk and a string from serializeNode are the same instant in the same type;
+ * without this, unquoted timestamps flowed through as Dates and every date
+ * comparison silently misbehaved.
+ */
+function normalizeTimestamps(frontmatter: Omit<MemoryNode, "body">): Omit<MemoryNode, "body"> {
+  const out = { ...frontmatter };
+  for (const field of ["validFrom", "validTo", "txnTime"] as const) {
+    const value: unknown = out[field]; // YAML's timestamp type is a Date; the declared type lies
+    if (value instanceof Date) {
+      (out as Record<string, unknown>)[field] = value.toISOString();
+    }
+  }
+  return out;
 }

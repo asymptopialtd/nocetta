@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { extractSymbols } from "../../src/anchor/index.js";
 import type { Anchor } from "../../src/anchor/index.js";
 import { loadRepoState, MEMORY_DIR, open } from "../../src/facade/index.js";
-import { filenameFor, writeNode } from "../../src/store/index.js";
+import { filenameFor, serializeNode, writeNode } from "../../src/store/index.js";
 import type { MemoryNode } from "../../src/store/index.js";
 
 /**
@@ -245,6 +245,26 @@ describe("open() facade + loadRepoState (Seam 2)", () => {
     expect(nc.nodes().map((n) => n.id)).toEqual([]); // stale until told
     nc.reload();
     expect(nc.nodes().map((n) => n.id)).toEqual(["external-1"]);
+  });
+
+  it("a hand-corrupted file quarantines: good nodes still serve, issues name exactly the bad file, and a fix + reload clears it", () => {
+    seed([node({ id: "good-1", body: "a healthy claim" })]);
+    const memoryDir = join(repoRoot, MEMORY_DIR);
+    writeFileSync(join(memoryDir, "broken--abc123.md"), "not frontmatter at all\n", "utf8");
+    const nc = open(repoRoot);
+
+    // the bad file never takes the query surface down
+    expect(nc.nodes().map((n) => n.id)).toEqual(["good-1"]);
+    const issues = nc.issues();
+    expect(issues).toHaveLength(1);
+    expect(issues[0]!.file).toBe("broken--abc123.md");
+    expect(issues[0]!.reason).toMatch(/frontmatter/);
+
+    // the human repairs the file on disk; a reload re-reads it as a good node
+    writeFileSync(join(memoryDir, "broken--abc123.md"), serializeNode(node({ id: "repaired-1", body: "fixed by hand" })), "utf8");
+    nc.reload();
+    expect(nc.issues()).toEqual([]);
+    expect(nc.nodes().map((n) => n.id).sort()).toEqual(["good-1", "repaired-1"]);
   });
 
   it("asOf returns the belief the store held at a transaction time", () => {

@@ -1,8 +1,8 @@
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildReverseIndex, filenameFor, readAll, writeNode } from "../../src/store/index.js";
+import { buildReverseIndex, filenameFor, readAll, serializeNode, writeNode } from "../../src/store/index.js";
 import type { MemoryNode } from "../../src/store/index.js";
 
 let dir: string;
@@ -104,5 +104,28 @@ describe("file store", () => {
   it("falls back to a stable name when the body yields no slug (non-latin text)", () => {
     const n: MemoryNode = node({ id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeffff0000", body: "记忆系统存储代码事实" });
     expect(filenameFor(n)).toBe("memory--aaaaaaaa.md");
+  });
+
+  it("writes atomically: no .tmp litter survives, and the bytes are exactly serializeNode output", () => {
+    const n: MemoryNode = node({ id: "atomic-1", body: "written through the single choke-point" });
+    writeNode(dir, n);
+
+    expect(readdirSync(dir)).toEqual([filenameFor(n)]);
+    expect(readFileSync(join(dir, filenameFor(n)), "utf8")).toBe(serializeNode(n));
+  });
+
+  it("normalizes anchor artifact paths to posix on write and never mutates the caller's node", () => {
+    const n: MemoryNode = node({
+      id: "winpath-1",
+      anchors: [{ locator: "src\\foo.ts › function foo", hash: "h1", artifactPath: "src\\foo.ts" }],
+      edges: [],
+    });
+    writeNode(dir, n);
+
+    const [readBack] = readAll(dir);
+    expect(readBack!.anchors[0]!.artifactPath).toBe("src/foo.ts");
+    // Only artifactPath normalizes: the locator is an opaque string, not a path.
+    expect(readBack!.anchors[0]!.locator).toBe("src\\foo.ts › function foo");
+    expect(n.anchors[0]!.artifactPath).toBe("src\\foo.ts");
   });
 });
