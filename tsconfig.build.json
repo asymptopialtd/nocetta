@@ -2,10 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "declaration": true,
-    "declarationMap": true,
     "noEmit": false,
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    // Closed distribution: the published artifact carries no maps — position
+    // maps and declaration maps are navigation aids back into src/, and
+    // nothing in the product needs them (tests run from src via vitest).
+    "sourceMap": false,
+    "declarationMap": false
   },
   "include": ["src"]
 }
