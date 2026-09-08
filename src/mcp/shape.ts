@@ -4,8 +4,12 @@ import type { StoreIssue } from "../store/store.js";
 import type { MemoryNode } from "../store/types.js";
 
 /**
- * The wire shape of a memory node (light 7): what an agent acts on — identity,
- * class, authority, anchor locators, validity, body — and nothing else. Anchor
+ * The wire shape of a CURRENT memory (light 7): what an agent acts on —
+ * identity, class, authority, anchor locators, body — and nothing else.
+ * Validity windows are deliberately absent: currency is the pipeline's
+ * decision, not the agent's to re-litigate (that judgment is why nocetta
+ * exists), and a date in every result line is an invitation to second-guess
+ * it. Window-bearing results are the as-of view's job (ShapedBelief). Anchor
  * hashes, edge lists and the rest of the frontmatter stay on disk; a tool
  * result that carries engine plumbing is a budget leak.
  */
@@ -16,11 +20,16 @@ export interface ShapedNode {
   scope: string;
   /** Anchor locators only ("src/foo.ts › function foo") — never hashes. */
   anchor: string[];
-  validFrom: string;
-  validTo: string | null;
-  /** Present only when retire() closed the node. */
+  /** Present only when retire() closed the node (then the reason matters). */
   retiredReason?: string;
   body: string;
+}
+
+/** The as-of view: superseded and retired beliefs, where the validity window
+ * is not plumbing but the answer. */
+export interface ShapedBelief extends ShapedNode {
+  validFrom: string;
+  validTo: string | null;
 }
 
 /** A ranked node: the same shape plus the ranking score, rounded — the order
@@ -36,11 +45,13 @@ export function shapeNode(node: MemoryNode): ShapedNode {
     authority: node.authority,
     scope: node.scope,
     anchor: node.anchors.map((a) => a.locator),
-    validFrom: node.validFrom,
-    validTo: node.validTo,
     ...(node.retiredReason ? { retiredReason: node.retiredReason } : {}),
     body: node.body,
   };
+}
+
+export function shapeBelief(node: MemoryNode): ShapedBelief {
+  return { ...shapeNode(node), validFrom: node.validFrom, validTo: node.validTo };
 }
 
 export function shapeHit(result: SearchResult): ShapedHit {

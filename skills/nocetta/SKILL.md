@@ -62,7 +62,7 @@ vibe. The worklist is how they stop being dirty.
 
 Remember a claim about code, anchored to the symbol it describes:
 ```json
-{"body": "fetchWithRetry gives up after 3 attempts, then returns the cached response", "kind": "claim", "artifact_path": "src/retry.ts", "symbol": "fetchWithRetry"}
+{"body": "fetchWithRetry gives up after 3 attempts, then returns the cached response", "kind": "claim", "artifact_path": "src/retry.ts", "symbol_name": "fetchWithRetry"}
 ```
 
 Recall by files in play (before editing) — or by keyword (when it's a decision question):
@@ -83,7 +83,7 @@ See what needs attention — dirty nodes with reasons, conflicts, quarantined fi
 
 Close a worklist item — reanchor while the belief holds, retire when it is gone:
 ```json
-{"node_id": "<id from memory_worklist>", "action": "reanchor", "symbol": "fetchWithRetry"}
+{"node_id": "<id from memory_worklist>", "action": "reanchor", "symbol_name": "fetchWithRetry"}
 {"node_id": "<id from memory_worklist>", "action": "retire", "reason": "fetchWithRetry deleted"}
 ```
 

@@ -5,6 +5,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { open } from "../../src/facade/index.js";
 import { createNocettaServer } from "../../src/mcp/index.js";
 
 /**
@@ -87,11 +88,11 @@ describe("nocetta MCP server (Seam 5)", () => {
       body: "foo returns the number one",
       kind: "claim",
       artifact_path: FOO_PATH,
-      symbol: "foo",
+      symbol_name: "foo",
     });
     expect(remembered.isError).toBe(false);
-    const shaped = JSON.parse(remembered.text) as { id: string; anchor: string; warnings: string[] };
-    expect(shaped.anchor).toBe(`${FOO_PATH} › function foo`);
+    const shaped = JSON.parse(remembered.text) as { id: string; anchor: string[]; warnings: string[] };
+    expect(shaped.anchor).toEqual([`${FOO_PATH} › function foo`]);
     expect(shaped.warnings).toEqual([]);
 
     const found = await callTool("memory_search", { files_in_play: [FOO_PATH] });
@@ -108,7 +109,7 @@ describe("nocetta MCP server (Seam 5)", () => {
   });
 
   it("memory_search shapes each line with id/kind/authority/anchor/body — and never a hash", async () => {
-    await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol: "foo" });
+    await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol_name: "foo" });
 
     const found = await callTool("memory_search", { files_in_play: [FOO_PATH], keyword: "returns" });
     const shaped = lines(found.text);
@@ -118,6 +119,10 @@ describe("nocetta MCP server (Seam 5)", () => {
     }
     expect(shaped[0]!.anchor).toEqual([`${FOO_PATH} › function foo`]);
     expect(found.text).not.toContain("hash");
+    // currency is the engine's decision, not the agent's to re-litigate —
+    // current results carry no validity window (the as-of view does)
+    expect(found.text).not.toContain("validFrom");
+    expect(found.text).not.toContain("validTo");
   });
 
   it("memory_search with neither files_in_play nor keyword refuses instead of returning an empty page", async () => {
@@ -127,7 +132,7 @@ describe("nocetta MCP server (Seam 5)", () => {
   });
 
   it("memory_worklist lists the drifted node with its reason verbatim, its artifactPath, and the repair pointer", async () => {
-    await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol: "foo" });
+    await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol_name: "foo" });
     writeFileSync(join(repoRoot, FOO_PATH), FOO_EDITED, "utf8");
 
     const worklist = await callTool("memory_worklist");
@@ -146,11 +151,11 @@ describe("nocetta MCP server (Seam 5)", () => {
   });
 
   it("memory_repair reanchor clears the worklist without changing the belief", async () => {
-    const remembered = await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol: "foo" });
+    const remembered = await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol_name: "foo" });
     const { id } = JSON.parse(remembered.text) as { id: string };
     writeFileSync(join(repoRoot, FOO_PATH), FOO_EDITED, "utf8");
 
-    const repaired = await callTool("memory_repair", { node_id: id, action: "reanchor", symbol: "foo" });
+    const repaired = await callTool("memory_repair", { node_id: id, action: "reanchor", symbol_name: "foo" });
     expect(repaired.isError).toBe(false);
     expect(JSON.parse(repaired.text)).toMatchObject({ id, anchor: [`${FOO_PATH} › function foo`] });
 
@@ -159,7 +164,7 @@ describe("nocetta MCP server (Seam 5)", () => {
   });
 
   it("memory_repair retire removes the node from current recall", async () => {
-    const remembered = await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol: "foo" });
+    const remembered = await callTool("memory_remember", { body: "foo returns the number one", kind: "claim", artifact_path: FOO_PATH, symbol_name: "foo" });
     const { id } = JSON.parse(remembered.text) as { id: string };
 
     const retired = await callTool("memory_repair", { node_id: id, action: "retire", reason: "foo is gone; the claim has no subject" });
@@ -171,10 +176,11 @@ describe("nocetta MCP server (Seam 5)", () => {
   });
 
   it("memory_supersede: search resolves to the new belief, and memory_as_of at the old txnTime still returns the old", async () => {
-    const v1 = await callTool("memory_remember", { body: "foo returns one", kind: "claim", artifact_path: FOO_PATH, symbol: "foo" });
+    const v1 = await callTool("memory_remember", { body: "foo returns one", kind: "claim", artifact_path: FOO_PATH, symbol_name: "foo" });
     const v1Id = (JSON.parse(v1.text) as { id: string }).id;
-    // capture stamps validFrom = txnTime, so the shaped result dates the belief
-    const oldTxnTime = lines((await callTool("memory_search", { files_in_play: [FOO_PATH] })).text)[0]!.validFrom as string;
+    // capture stamps validFrom = txnTime; the store (not a search result) is
+    // where the test reads it — current results carry no validity window
+    const v1TxnTime = open(repoRoot).nodes().find((n) => n.id === v1Id)!.txnTime;
 
     // txnTime is stamped at millisecond resolution; make the supersession
     // strictly later so the as-of bracket below is deterministic.
@@ -188,11 +194,15 @@ describe("nocetta MCP server (Seam 5)", () => {
     // the old fact is never served as current: the tip replaces it
     expect(lines((await callTool("memory_search", { files_in_play: [FOO_PATH] })).text).map((hit) => hit.id)).toEqual([tipId]);
     // the old belief is still what the store held at the earlier txnTime
-    expect(lines((await callTool("memory_as_of", { at: oldTxnTime })).text).map((hit) => hit.id)).toEqual([v1Id]);
+    const asOfLines = lines((await callTool("memory_as_of", { at: v1TxnTime })).text);
+    expect(asOfLines.map((hit) => hit.id)).toEqual([v1Id]);
+    // there the window IS the answer: as-of beliefs carry validity, closure included
+    expect(asOfLines[0]!.validFrom).toBe(v1TxnTime);
+    expect(asOfLines[0]!.validTo).toBe(open(repoRoot).nodes().find((n) => n.id === v1Id)!.validTo);
   });
 
   it("honest refusals surface as isError text: memory_remember with an unknown symbol name", async () => {
-    const refused = await callTool("memory_remember", { body: "a claim about a symbol that isn't there", kind: "claim", artifact_path: FOO_PATH, symbol: "nope" });
+    const refused = await callTool("memory_remember", { body: "a claim about a symbol that isn't there", kind: "claim", artifact_path: FOO_PATH, symbol_name: "nope" });
     expect(refused.isError).toBe(true);
     expect(refused.text).toContain(`no symbol named "nope"`);
   });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createNode } from "../capture/create.js";
 import type { Nocetta } from "../facade/open.js";
-import { shapeHit, shapeLines, shapeNode, shapeWorklist } from "./shape.js";
+import { shapeBelief, shapeHit, shapeLines, shapeWorklist } from "./shape.js";
 
 const KIND = z.enum(["claim", "value", "entity", "lore-fact"]);
 const AUTHORITY = z.enum(["invariant", "default"]);
@@ -46,7 +46,7 @@ export const TOOLS: readonly ToolDef[] = [
     "memory_search",
     "The recall surface: call it BEFORE editing code to pull up what memory knows about the files you are about to touch, or to answer a question from stored facts. " +
       "files_in_play are repo-relative paths; they match memories by their code/doc anchors. keyword is a free-text query over memory bodies. Give at least one of the two — a call with neither refuses. " +
-      "Results are ranked and current-only (superseded and retired facts are never served), one JSON object per line: id, kind, authority, score, anchor locators, validity window, body. " +
+      "Results are ranked and current-only (superseded and retired facts are never served), one JSON object per line: id, kind, authority, score, anchor locators, body. " +
       'Example: {"files_in_play":["src/auth/login.ts"]} or {"keyword":"why is retry capped at 3"}.',
     {
       files_in_play: z
@@ -71,7 +71,7 @@ export const TOOLS: readonly ToolDef[] = [
   defineTool(
     "memory_remember",
     "Capture a durable fact so a future session recalls it here. kind is \"claim\" (a fact about code), \"value\" (a decision or convention), \"entity\" (a thing and its aliases) or \"lore-fact\" (a fact about docs/plans). " +
-      "A fact about code or a doc should be anchored so it detects its own staleness: pass artifact_path plus symbol (the exact symbol name in that file, e.g. \"foo\") or heading (the exact markdown heading). " +
+      "A fact about code or a doc should be anchored so it detects its own staleness: pass artifact_path plus symbol_name (the exact symbol name in that file, e.g. \"foo\") or heading (the exact markdown heading). " +
       "Unknown or ambiguous anchor names are refused with the candidates — fix the name and retry; a body containing secrets is refused outright and nothing is written. " +
       "Conflict advisories come back as warnings: they are advice, the write still happened. " +
       'Example: {"body":"foo returns the number one","kind":"claim","artifact_path":"src/foo.ts","symbol":"foo"}.',
@@ -79,18 +79,18 @@ export const TOOLS: readonly ToolDef[] = [
       body: z.string().min(1).describe("The fact itself, in prose"),
       kind: KIND.describe("claim = fact about code, value = decision/convention, entity = thing + aliases, lore-fact = doc/plan fact"),
       artifact_path: z.string().optional().describe("Repo-relative path of the file to anchor to (required with symbol or heading)"),
-      symbol: z.string().optional().describe("Exact symbol name in artifact_path to anchor to (code files)"),
+      symbol_name: z.string().optional().describe("Exact symbol name in artifact_path to anchor to (code files)"),
       heading: z.string().optional().describe("Exact markdown heading in artifact_path to anchor to"),
       scope: z.string().optional().describe("Scope, e.g. a repo-relative directory (default: \"global\")"),
       authority: AUTHORITY.optional().describe('"invariant" outranks contradicting defaults — use sparingly (default: "default")'),
       supersedes: z.string().optional().describe("Node id this fact replaces, in one call (capture-as-supersession)"),
     },
-    (nc, { body, kind, artifact_path, symbol, heading, scope, authority, supersedes }) => {
+    (nc, { body, kind, artifact_path, symbol_name, heading, scope, authority, supersedes }) => {
       const { node, superseded, warnings } = nc.remember({
         body,
         kind,
         artifactPath: artifact_path,
-        symbolName: symbol,
+        symbolName: symbol_name,
         heading,
         scope,
         authority,
@@ -98,7 +98,7 @@ export const TOOLS: readonly ToolDef[] = [
       });
       return JSON.stringify({
         id: node.id,
-        anchor: node.anchors[0]?.locator ?? null,
+        anchor: node.anchors.map((a) => a.locator),
         scope: node.scope,
         ...(superseded ? { superseded: superseded.id } : {}),
         warnings,
@@ -146,21 +146,21 @@ export const TOOLS: readonly ToolDef[] = [
 
   defineTool(
     "memory_repair",
-    "Close an item from memory_worklist. action \"reanchor\": the dirty node's anchor is re-resolved against the artifact's current source and its locator+hash rewritten — the belief itself is untouched; give symbol (the exact symbol name) or heading (the exact heading), the same names memory_remember accepts. " +
+    "Close an item from memory_worklist. action \"reanchor\": the dirty node's anchor is re-resolved against the artifact's current source and its locator+hash rewritten — the belief itself is untouched; give symbol_name (the exact symbol name) or heading (the exact heading), the same names memory_remember accepts. " +
       "action \"retire\": the belief's subject is gone; closes the node's validity window and requires reason. " +
       'Example: {"node_id":"<id from memory_worklist>","action":"reanchor","symbol":"foo"}.',
     {
       node_id: z.string().describe("The node to repair"),
       action: z.enum(["reanchor", "retire"]).describe('"reanchor" fixes a drifted anchor in place; "retire" closes a belief whose subject is gone'),
-      symbol: z.string().optional().describe("Exact symbol name to re-resolve the anchor against (reanchor on code)"),
+      symbol_name: z.string().optional().describe("Exact symbol name to re-resolve the anchor against (reanchor on code)"),
       heading: z.string().optional().describe("Exact markdown heading to re-resolve the anchor against (reanchor on docs)"),
       reason: z.string().optional().describe("Why the belief is gone (required for retire)"),
     },
-    (nc, { node_id, action, symbol, heading, reason }) => {
+    (nc, { node_id, action, symbol_name, heading, reason }) => {
       if (action === "reanchor") {
         // Validation is the engine's single voice: reAnchor refuses a request
         // that names nothing with the same message capture would give.
-        const repaired = nc.reAnchor(node_id, { symbolName: symbol, heading });
+        const repaired = nc.reAnchor(node_id, { symbolName: symbol_name, heading });
         return JSON.stringify({ id: repaired.id, anchor: repaired.anchors.map((a) => a.locator) });
       }
       // An absent reason trips retire's own refusal, verbatim.
@@ -172,14 +172,14 @@ export const TOOLS: readonly ToolDef[] = [
   defineTool(
     "memory_as_of",
     "Time travel: the beliefs the store held at transaction time at (ISO 8601) — including facts that have since been superseded or retired. " +
-      'Use it to answer "what did we believe back then?": reproducing an old bug, auditing how a decision evolved. One JSON object per line, shaped like memory_search results but unranked. ' +
+      'Use it to answer "what did we believe back then?": reproducing an old bug, auditing how a decision evolved. One JSON object per line, shaped like memory_search results but unranked and carrying the validity window. ' +
       'Example: {"at":"2026-06-01T00:00:00Z"}.',
     {
       at: z.string().describe("ISO 8601 transaction time to query the store at"),
     },
     (nc, { at }) => {
       const nodes = nc.asOf(at);
-      return nodes.length === 0 ? `the store held no beliefs at ${at}` : shapeLines(nodes.map(shapeNode));
+      return nodes.length === 0 ? `the store held no beliefs at ${at}` : shapeLines(nodes.map(shapeBelief));
     },
   ),
 ];

@@ -8,7 +8,7 @@ nocetta MCP server.
 - Remember durable facts only: decisions and their why, claims about code behavior,
   entity definitions. Never transient state — if git can tell the next agent (the diff,
   the commit message, file contents), don't store it.
-- Anchor claims to the exact symbol (`artifact_path` + `symbol`) — an unanchored fact
+- Anchor claims to the exact symbol (`artifact_path` + `symbol_name`) — an unanchored fact
   can never detect its own staleness.
 - When a new fact contradicts a stored one, supersede it. Never write a conflicting
   duplicate.

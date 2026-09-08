@@ -44,9 +44,14 @@ light wins and the seam shrinks. Each light names where it is enforced.
    paragraph of explanation, the API is wrong. — *Enforced by: the dogfood-eval rubric
    (Seam 6).*
 
-7. **Token discipline.** Outputs are shaped for a context window: ranked, compact,
-   self-describing (id, anchor, authority, validity, staleness reason), never a graph
-   dump. — *Enforced by: budget tests extended to tool output shapes (Seam 5).*
+7. **Token discipline — the interface speaks tasks, the model speaks structure.** Outputs
+   are shaped for a context window: ranked, compact, self-describing, never a graph dump.
+   Surface what informs the agent's own choices (kind, authority, anchor locators, ids,
+   staleness reasons); hide what the engine has already decided (validity windows on
+   current results, hashes, edge machinery). A field in a result is an invitation to
+   reason about it — and re-litigating currency is exactly the judgment nocetta exists to
+   make for the agent. — *Enforced by: the shape tests (search carries no validity
+   window, as-of does; never a hash).*
 
 8. **Artifacts carry weight.** Comments state constraints the code cannot show; tests
    assert invariants and are named after the property they protect; docs record decisions
@@ -258,3 +263,5 @@ never truth. No commit until measured.
   build ahead of the loop.
 - **Migration tooling** — the `version` field (Seam 1) is the whole investment until a
   real store breaks.
+- **Windows verification** — path normalization is preventive, untested; promote to
+  actually tested just before external closed alpha (He, 2026-09-08).
