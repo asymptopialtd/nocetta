@@ -8,6 +8,10 @@
     "dist"
   ],
   "exports": {
+    ".": {
+      "types": "./dist/facade/index.d.ts",
+      "default": "./dist/facade/index.js"
+    },
     "./store": {
       "types": "./dist/store/index.d.ts",
       "default": "./dist/store/index.js"
