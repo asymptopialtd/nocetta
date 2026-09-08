@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { NeverLeakError, writeNode } from "../../src/store/store.js";
+import { NeverLeakError, filenameFor, writeNode } from "../../src/store/store.js";
 import type { MemoryNode } from "../../src/store/types.js";
 
 function node(overrides: Partial<MemoryNode> & { id: string }): MemoryNode {
@@ -34,7 +34,7 @@ afterEach(() => {
 describe("never-leak write gate", () => {
   it("allows an ordinary claim to be written", () => {
     expect(() => writeNode(dir, node({ id: "ok", body: "calculateTotal sums the items array." }))).not.toThrow();
-    expect(existsSync(join(dir, "ok.md"))).toBe(true);
+    expect(existsSync(join(dir, filenameFor(node({ id: "ok", body: "calculateTotal sums the items array." }))))).toBe(true);
   });
 
   it("refuses a private key block and does not write the file", () => {

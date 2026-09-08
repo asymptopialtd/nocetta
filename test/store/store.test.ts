@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildReverseIndex, readAll, writeNode } from "../../src/store/index.js";
+import { buildReverseIndex, filenameFor, readAll, writeNode } from "../../src/store/index.js";
 import type { MemoryNode } from "../../src/store/index.js";
 
 let dir: string;
@@ -90,5 +90,19 @@ describe("file store", () => {
     const missing = join(dir, "does-not-exist");
     expect(readAll(missing)).toEqual([]);
     expect(buildReverseIndex(readAll(missing)).size).toBe(0);
+  });
+
+  it("names files <slug>--<id8>.md — readable in ls/git log, unique, traceable to the id", () => {
+    const n: MemoryNode = node({ id: "7e265cdb-e39e-4fc3-8a0c-1484f9c60189", body: "Every memory write routes through writeNode" });
+    expect(filenameFor(n)).toBe("every-memory-write-routes-through-writenode--7e265cdb.md");
+
+    writeNode(dir, n);
+    expect(readdirSync(dir)).toEqual([filenameFor(n)]);
+    expect(readAll(dir)[0]!.id).toBe(n.id); // identity lives in frontmatter, not the name
+  });
+
+  it("falls back to a stable name when the body yields no slug (non-latin text)", () => {
+    const n: MemoryNode = node({ id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeffff0000", body: "记忆系统存储代码事实" });
+    expect(filenameFor(n)).toBe("memory--aaaaaaaa.md");
   });
 });

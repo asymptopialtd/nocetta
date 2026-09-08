@@ -7,7 +7,7 @@ import { createNode, remember } from "../../src/capture/index.js";
 import { check } from "../../src/drift/check.js";
 import { repoStateFromFiles } from "../../src/drift/repo-state.js";
 import { resolveToTip } from "../../src/retrieval/pipeline.js";
-import { NeverLeakError, parseNode, readAll, serializeNode } from "../../src/store/index.js";
+import { NeverLeakError, filenameFor, parseNode, readAll, serializeNode } from "../../src/store/index.js";
 import type { MemoryNode } from "../../src/store/index.js";
 
 const NOW = "2026-06-01T00:00:00.000Z";
@@ -133,7 +133,7 @@ describe("remember", () => {
 
     // Files are truth: the node exists on disk and round-trips through parse
     // alone, version included.
-    expect(existsSync(join(dir, `${result.node.id}.md`))).toBe(true);
+    expect(existsSync(join(dir, filenameFor(result.node)))).toBe(true);
     const [onDisk] = readAll(dir);
     expect(onDisk).toEqual(result.node);
     expect(onDisk!.version).toBe(1);
@@ -151,7 +151,7 @@ describe("remember", () => {
     expect(result.node.anchors).toEqual([
       { locator: "lore/mage.md#Elminster", hash: expected.hash, artifactPath: "lore/mage.md" },
     ]);
-    expect(existsSync(join(dir, `${result.node.id}.md`))).toBe(true);
+    expect(existsSync(join(dir, filenameFor(result.node)))).toBe(true);
   });
 
   it("refuses an unknown symbol name, listing the available ones — nothing written", () => {

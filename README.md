@@ -36,7 +36,9 @@ from the files alone, with no database and no runtime.
 
 ## Memory file format
 
-One markdown file per memory node, YAML frontmatter + body, under `.nocetta/memory/<id>.md`:
+One markdown file per memory node, YAML frontmatter + body, under
+`.nocetta/memory/<slug>--<id8>.md` (a kebab slug of the body plus the id's first 8
+chars — readable in `ls` and `git log`; identity is always the frontmatter `id`):
 
 ```yaml
 ---
