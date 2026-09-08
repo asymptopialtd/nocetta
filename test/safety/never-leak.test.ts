@@ -79,4 +79,26 @@ describe("never-leak write gate", () => {
     });
     expect(() => writeNode(dir, secret)).toThrow(NeverLeakError);
   });
+
+  // Regression: dogfooding (importing real project notes) showed the entropy
+  // heuristic firing on ordinary technical prose. These must now be allowed.
+  it("allows slash-joined term lists and paths", () => {
+    expect(() =>
+      writeNode(dir, node({ id: "fp-terms", body: "the pipeline is envelope/egress/draft/flush/arbiter and the verbs are url/method/host/path/command/to/subject" })),
+    ).not.toThrow();
+    expect(() =>
+      writeNode(dir, node({ id: "fp-path", body: "the renderer lives in packages/governance/result-view/src/present" })),
+    ).not.toThrow();
+  });
+
+  it("allows a bare UUID mentioned in prose", () => {
+    expect(() =>
+      writeNode(dir, node({ id: "fp-uuid", body: "session 40be0fa5-c38b-4445-8f27-7757670e40a3 handled the flush" })),
+    ).not.toThrow();
+  });
+
+  it("still catches a base64 secret that happens to contain a slash", () => {
+    const secret = node({ id: "leak-b64", body: "leaked token: aB3dE/fGh9Ij0kLm1nOp2qRs3tUv4wXy5zA6bC7dE8f=" });
+    expect(() => writeNode(dir, secret)).toThrow(NeverLeakError);
+  });
 });

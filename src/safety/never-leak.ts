@@ -44,11 +44,43 @@ function shannonEntropy(s: string): number {
   return entropy;
 }
 
-/** A long run of dense-looking token characters with high Shannon entropy —
- * the shape of an API key/secret, not a match on any known vendor format. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * Whether a candidate is a separator-joined run of low-entropy words — a path,
+ * a slash-joined term list, or a snake/kebab identifier — rather than a dense
+ * secret blob. Its length comes from the `/`, `-`, `_` separators between short
+ * word-like pieces, not from randomness. A real base64/base64url secret split
+ * on those separators yields long, high-entropy pieces, so it is NOT excluded.
+ */
+function isSeparatorJoinedWords(s: string): boolean {
+  const segments = s.split(/[/_-]/).filter((seg) => seg.length > 0);
+  if (segments.length < 2) return false;
+  // Each piece is a short, low-entropy chunk — a word, a number, or a hex
+  // quartet (paths carry numeric/hex segments too). A real secret's pieces stay
+  // long or high-entropy, so it is not misclassified.
+  return segments.every((seg) => seg.length <= 20 && shannonEntropy(seg) < 3.5);
+}
+
+/**
+ * A long run of dense-looking token characters with high Shannon entropy — the
+ * shape of an API key/secret, not a match on any known vendor format.
+ *
+ * Excludes false-positive shapes that dogfooding surfaced in ordinary technical
+ * prose (importing project notes as memory): UUIDs, and separator-joined paths /
+ * term lists like "packages/governance/result-view/src" or
+ * "envelope/egress/draft/flush/arbiter". A genuine secret is a single dense run,
+ * so those exclusions don't weaken real detection — a base64 blob containing "/"
+ * still trips the check because its pieces stay high-entropy.
+ */
 function findHighEntropyToken(text: string): string | undefined {
   const candidates = text.match(/[A-Za-z0-9+/_=-]{24,}/g) ?? [];
-  return candidates.find((c) => shannonEntropy(c) >= 4.0);
+  for (const candidate of candidates) {
+    if (UUID_RE.test(candidate)) continue;
+    if (isSeparatorJoinedWords(candidate)) continue;
+    if (shannonEntropy(candidate) >= 4.0) return candidate;
+  }
+  return undefined;
 }
 
 /** Scan a memory node for obvious secrets before it's ever written. Returns
