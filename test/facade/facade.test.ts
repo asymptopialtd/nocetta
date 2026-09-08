@@ -218,6 +218,33 @@ describe("open() facade + loadRepoState (Seam 2)", () => {
     expect(conflicts[0]!.defaultNode.id).toBe("def");
   });
 
+  it("worklist reports only the live view — dead beliefs (superseded, expired) never appear as dirty", () => {
+    seed([
+      // live and anchored to FOO_PATH: goes dirty when foo's body is edited
+      node({ id: "live", anchors: [{ locator: `${FOO_PATH} › function foo`, hash: "h", artifactPath: FOO_PATH }] }),
+      // superseded: same anchor, same drift — but the belief is dead
+      node({ id: "dead", anchors: [{ locator: `${FOO_PATH} › function foo`, hash: "h", artifactPath: FOO_PATH }], edges: [{ type: "superseded-by", target: "live" }] }),
+      // expired: retired before the drift, validity closed
+      node({ id: "gone", anchors: [{ locator: `${FOO_PATH} › function foo`, hash: "h", artifactPath: FOO_PATH }], validTo: "2026-01-01T00:00:00.000Z" }),
+    ]);
+    const nc = open(repoRoot);
+    writeFileSync(join(repoRoot, FOO_PATH), FOO_EDITED, "utf8");
+
+    const dirty = nc.worklist().dirty.map((d) => d.node.id);
+    expect(dirty).toEqual(["live"]);
+  });
+
+  it("worklist.now bounds the validity window deterministically", () => {
+    seed([
+      node({ id: "future", validFrom: "2030-01-01T00:00:00.000Z", anchors: [{ locator: `${FOO_PATH} › function foo`, hash: "stale", artifactPath: FOO_PATH }] }),
+    ]);
+    const nc = open(repoRoot);
+    // not yet valid: its stale anchor is nobody's problem yet
+    expect(nc.worklist({ now: "2026-06-01T00:00:00.000Z" }).dirty).toEqual([]);
+    // once valid: it shows up
+    expect(nc.worklist({ now: "2030-06-01T00:00:00.000Z" }).dirty.map((d) => d.node.id)).toEqual(["future"]);
+  });
+
   it("reAnchor repairs the drifted anchor in place through the facade — cache current without a manual reload", () => {
     const nc = open(repoRoot);
     const { node: captured } = nc.remember({ body: "foo returns 1", kind: "claim", artifactPath: FOO_PATH, symbolName: "foo" });

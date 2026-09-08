@@ -270,10 +270,13 @@ describe("remember", () => {
       authority: "invariant",
       body: "all SQL is parameterized, always",
     });
+    // Same subject on purpose (shared vocabulary "sql"): the advisory must
+    // fire for a genuine same-topic disagreement. Unrelated-topic pairs —
+    // scope shared, vocabulary not — are the noise the gate exists to remove.
     const result = remember(
       dir,
       [invariant],
-      { body: "string concatenation is fine for this one query", kind: "value", scope: "team", authority: "default" },
+      { body: "string concatenation is fine for building this one SQL fragment", kind: "value", scope: "team", authority: "default" },
       { now: NOW },
     );
 

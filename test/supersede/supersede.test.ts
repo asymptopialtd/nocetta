@@ -135,6 +135,32 @@ describe("findConflicts", () => {
     const referent = node({ id: "ent", kind: "entity", scope: "global", authority: "default", body: "Nocetta" });
     expect(findConflicts([policy, referent])).toEqual([]);
   });
+
+  it("does not flag unanchored pairs whose bodies share no subject vocabulary — scope alone is not a subject", () => {
+    // The dogfood shape: a closed-source policy vs a test-runner preference,
+    // same global scope, nothing in common — flagging these is how an advisory
+    // teaches its reader to ignore it.
+    const policy = node({ id: "policy", kind: "value", scope: "global", authority: "invariant", body: "Nocetta stays closed source: private package, tarball distribution" });
+    const preference = node({ id: "pref", kind: "value", scope: "global", authority: "default", body: "prefer vitest over jest for new test files" });
+    expect(findConflicts([policy, preference])).toEqual([]);
+  });
+
+  it("still flags unanchored pairs on positive evidence: vocabulary both bodies use", () => {
+    const policy = node({ id: "policy", kind: "value", scope: "global", authority: "invariant", body: "always use pnpm for package installs" });
+    const heresy = node({ id: "heresy", kind: "value", scope: "global", authority: "default", body: "npm is fine for package installs in scripts" });
+    const conflicts = findConflicts([policy, heresy]);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0]).toMatchObject({ invariantNode: { id: "policy" }, defaultNode: { id: "heresy" } });
+  });
+
+  it("dead beliefs do not conflict — a disagreement among the dead is not attention-worthy", () => {
+    const policy = node({ id: "policy", kind: "value", scope: "global", authority: "invariant", body: "always use pnpm for package installs" });
+    const dead = node({ id: "dead", kind: "value", scope: "global", authority: "default", body: "yarn is fine for package installs", edges: [{ type: "superseded-by", target: "heir" }] });
+    const heir = node({ id: "heir", kind: "value", scope: "global", authority: "default", body: "bun is fine for package installs in workspaces" });
+    const conflicts = findConflicts([policy, dead, heir]);
+    expect(conflicts).toHaveLength(1); // the heir's heresy; the dead node's is gone
+    expect(conflicts[0]!.defaultNode.id).toBe("heir");
+  });
 });
 
 describe("retconImpact", () => {

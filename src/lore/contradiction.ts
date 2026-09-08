@@ -1,3 +1,4 @@
+import { STOPWORDS, tokenize } from "../text/tokens.js";
 import { findReferences } from "./entity.js";
 import type { MemoryNode } from "../store/types.js";
 
@@ -17,12 +18,7 @@ export interface ContradictionFlagger {
   flag(existingFacts: MemoryNode[], newFact: MemoryNode): ContradictionSuggestion[];
 }
 
-const STOPWORDS = new Set(["a", "an", "the", "is", "in", "on", "at", "of", "to", "and", "or", "now"]);
 const NEGATION_WORDS = ["not", "no longer", "never", "isn't", "aren't", "doesn't", "didn't"];
-
-function tokenize(text: string): string[] {
-  return text.toLowerCase().match(/[a-z0-9']+/g) ?? [];
-}
 
 function hasNegation(text: string): boolean {
   const lower = text.toLowerCase();

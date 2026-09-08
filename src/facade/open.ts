@@ -171,17 +171,26 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
       return result;
     },
 
-    // opts.now is part of the seam's signature (Seam 4's repair surface stamps
-    // times) but today's composition — drift check + conflicts — is
-    // time-independent, so it has no stage to feed yet.
-    worklist(_worklistOpts: { now?: string } = {}): Worklist {
-      const { dirty, reasons } = check(cache, loadRepoState(repoRoot, cache), locator);
-      const byId = new Map(cache.map((n) => [n.id, n]));
+    // The worklist reports the CURRENT view's problems, and only those: dead
+    // beliefs (superseded; retired/expired) need no attention, and reporting
+    // them is how a worklist trains its reader to ignore it — reAnchor already
+    // refuses them, so each dead entry is advice the agent cannot act on.
+    // `now` bounds the validity window; deterministic tests pass it explicitly.
+    worklist(worklistOpts: { now?: string } = {}): Worklist {
+      const now = worklistOpts.now ?? new Date().toISOString();
+      const live = cache.filter(
+        (n) =>
+          !n.edges.some((e) => e.type === "superseded-by") &&
+          n.validFrom <= now &&
+          (n.validTo === null || n.validTo > now),
+      );
+      const { dirty, reasons } = check(live, loadRepoState(repoRoot, live), locator);
+      const byId = new Map(live.map((n) => [n.id, n]));
       return {
         dirty: [...dirty]
           .map((id) => ({ node: byId.get(id)!, reason: reasons.get(id)! }))
           .sort((a, b) => a.node.id.localeCompare(b.node.id)),
-        conflicts: findConflicts(cache),
+        conflicts: findConflicts(live),
       };
     },
 
