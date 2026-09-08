@@ -23,4 +23,7 @@ export interface MemoryNode {
   authority: Authority;
   overrideReason: string | null;
   body: string;
+  /** `entity` nodes only: alternate names resolved to this canonical node
+   * (the canonical name itself is the node's `body`). Slice 8. */
+  aliases?: string[];
 }

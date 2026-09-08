@@ -1,4 +1,4 @@
-import { locate } from "../anchor/locate.js";
+import { locateAnchor } from "../anchor/locate-any.js";
 import type { MemoryNode } from "../store/types.js";
 import type { RepoState } from "./repo-state.js";
 
@@ -43,7 +43,7 @@ export function check(nodes: MemoryNode[], repoState: RepoState): CheckResult {
         markDirty(node.id, `artifact missing: ${anchor.artifactPath}`);
         continue;
       }
-      const result = locate(anchor, source);
+      const result = locateAnchor(anchor, source);
       if (!result.found) {
         markDirty(node.id, `symbol not found: ${anchor.locator}`);
       } else if (result.hashChanged) {

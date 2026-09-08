@@ -1,4 +1,4 @@
-export type SymbolKind = "function" | "class" | "method" | "const";
+export type SymbolKind = "function" | "class" | "method" | "const" | "content-span";
 
 /** A symbol enumerated from a parsed source file: its stable path, kind, and
  * normalized content hash at the moment of extraction. */
