@@ -1,12 +1,18 @@
 import type { RepoState } from "../drift/repo-state.js";
 import type { MemoryNode } from "../store/types.js";
+import { candidatesFromKeyword } from "./keyword.js";
 import { applyBudget, candidatesFromFiles, filterLive, rankCandidates, resolveToTip } from "./pipeline.js";
 import type { SearchQuery, SearchResult } from "./types.js";
 
-/** The explicit callable: full pipeline given a query. */
+/** The explicit callable: full pipeline given a query. Two candidate-gen
+ * sources feed the same downstream stages: anchor reverse-index (always)
+ * and BM25 keyword (when query.keyword is given). */
 export function searchMemory(nodes: MemoryNode[], repoState: RepoState, query: SearchQuery): SearchResult[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const candidates = candidatesFromFiles(nodes, query.filesInPlay);
+  const candidates = [
+    ...candidatesFromFiles(nodes, query.filesInPlay),
+    ...(query.keyword ? candidatesFromKeyword(nodes, query.keyword) : []),
+  ];
   const resolved = resolveToTip(candidates, byId);
   const live = filterLive(resolved, { scope: query.scope, now: query.now, nodes, repoState });
   const ranked = rankCandidates(live, query.now);

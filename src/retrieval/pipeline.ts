@@ -4,9 +4,8 @@ import type { MemoryNode } from "../store/types.js";
 import type { Candidate, RankedCandidate } from "./types.js";
 
 /** Stage 1: candidate-gen via the anchor reverse-index — any node with at
- * least one anchor into the given file set. (Keyword candidate-gen is
- * Slice 6; this pipeline is built so it can add a second candidate source
- * that feeds the same downstream stages.) */
+ * least one anchor into the given file set. (keyword.ts's candidatesFromKeyword
+ * is the second candidate-gen source, Slice 6 — same downstream stages.) */
 export function candidatesFromFiles(nodes: MemoryNode[], filesInPlay: readonly string[]): Candidate[] {
   const fileSet = new Set(filesInPlay);
   const candidates: Candidate[] = [];
@@ -32,9 +31,10 @@ function walkToTip(node: MemoryNode, byId: ReadonlyMap<string, MemoryNode>): Mem
 }
 
 /** Stage 2: resolve every candidate forward to its supersession tip, merging
- * (by union of matchedFiles) any candidates that collapse onto the same tip.
- * This is what drops superseded nodes from ever being a final result — a
- * superseded candidate is always replaced by its tip, never returned as-is. */
+ * (union of matchedFiles, max of keywordScore) any candidates that collapse
+ * onto the same tip. This is what drops superseded nodes from ever being a
+ * final result — a superseded candidate is always replaced by its tip,
+ * never returned as-is. */
 export function resolveToTip(candidates: Candidate[], byId: ReadonlyMap<string, MemoryNode>): Candidate[] {
   const merged = new Map<string, Candidate>();
   for (const candidate of candidates) {
@@ -42,8 +42,11 @@ export function resolveToTip(candidates: Candidate[], byId: ReadonlyMap<string, 
     const existing = merged.get(tip.id);
     if (existing) {
       for (const f of candidate.matchedFiles) existing.matchedFiles.add(f);
+      if (candidate.keywordScore !== undefined) {
+        existing.keywordScore = Math.max(existing.keywordScore ?? 0, candidate.keywordScore);
+      }
     } else {
-      merged.set(tip.id, { node: tip, matchedFiles: new Set(candidate.matchedFiles) });
+      merged.set(tip.id, { node: tip, matchedFiles: new Set(candidate.matchedFiles), keywordScore: candidate.keywordScore });
     }
   }
   return [...merged.values()];
@@ -78,15 +81,16 @@ export function filterLive(candidates: Candidate[], opts: FilterLiveOptions): Ca
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 /** Stage 4: rank — anchor-match count dominates (this is anchor-driven
- * retrieval), recency breaks ties within/across match counts without ever
- * outweighing a match. */
+ * retrieval), BM25 keyword score adds a secondary signal (bounded well
+ * below one anchor match), recency breaks remaining ties without ever
+ * outweighing either. */
 export function rankCandidates(candidates: Candidate[], now: string = new Date().toISOString()): RankedCandidate[] {
   const nowMs = new Date(now).getTime();
   return candidates
     .map((c) => {
       const ageMs = Math.max(0, nowMs - new Date(c.node.txnTime).getTime());
       const recency = 1 / (1 + ageMs / DAY_MS);
-      return { ...c, score: c.matchedFiles.size * 10 + recency };
+      return { ...c, score: c.matchedFiles.size * 10 + (c.keywordScore ?? 0) + recency };
     })
     .sort((a, b) => b.score - a.score);
 }
