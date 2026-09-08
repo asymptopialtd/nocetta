@@ -4,7 +4,7 @@ kind: claim
 scope: global
 anchors:
   - locator: "src/store/store.ts › function writeNode"
-    hash: 7d1171bdce7f4473b82f5e8a6dfe0d035106a2856eed3f049d43966a9b8a99c8
+    hash: 07fa093c3ebb5ee8a368267229dfe8d731e1b62c31b92c7165fb561a2c861037
     artifactPath: src/store/store.ts
 edges: []
 validFrom: 2026-09-08T17:30:00.000Z
