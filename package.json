@@ -7,6 +7,9 @@
   "files": [
     "dist"
   ],
+  "bin": {
+    "nocetta-mcp": "./dist/mcp/server.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/facade/index.d.ts",
@@ -52,6 +55,10 @@
       "types": "./dist/repair/index.d.ts",
       "default": "./dist/repair/index.js"
     },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
+    },
     "./package.json": "./package.json"
   },
   "engines": {
@@ -64,9 +71,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "js-yaml": "^4.1.0",
     "tree-sitter-typescript": "^0.23.2",
-    "web-tree-sitter": "^0.25.10"
+    "web-tree-sitter": "^0.25.10",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
