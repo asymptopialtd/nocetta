@@ -1,4 +1,4 @@
-import { nativeLocator } from "./symbols.js";
+import { defaultLocator } from "./symbols.js";
 import type { SymbolLocator } from "./locator.js";
 import type { Anchor, LocateResult } from "./types.js";
 
@@ -16,7 +16,7 @@ function lastSegment(path: string): string {
  * resolve and report its updated path, while a genuine rename (name changed,
  * or the body changed too) stays an honest miss rather than a guess.
  */
-export function locate(anchor: Anchor, sourceAfter: string, locator: SymbolLocator = nativeLocator): LocateResult {
+export function locate(anchor: Anchor, sourceAfter: string, locator: SymbolLocator = defaultLocator): LocateResult {
   const symbols = locator.extractSymbols(anchor.artifactPath, sourceAfter);
 
   const exact = symbols.find((s) => s.path === anchor.locator);

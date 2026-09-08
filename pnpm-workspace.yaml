@@ -1,8 +1,10 @@
+# nocetta is a single-package repo; this file records pnpm's dependency-build
+# policy. We use web-tree-sitter's prebuilt WASM, so the tree-sitter grammars
+# need NO native build (their addons are never loaded). Only esbuild (vitest's
+# transpiler) legitimately builds.
 onlyBuiltDependencies:
-  - tree-sitter
-  - tree-sitter-typescript
   - esbuild
 allowBuilds:
   esbuild: true
-  tree-sitter: true
-  tree-sitter-typescript: true
+  tree-sitter-typescript: false
+  tree-sitter-javascript: false

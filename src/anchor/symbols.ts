@@ -1,13 +1,26 @@
 import { createHash } from "node:crypto";
-import Parser from "tree-sitter";
-import TypeScript from "tree-sitter-typescript";
+import { createRequire } from "node:module";
+import { Language, Parser, type Node } from "web-tree-sitter";
 import type { SymbolInfo, SymbolKind } from "./types.js";
 import type { SymbolLocator } from "./locator.js";
 
+/**
+ * Parser backend: `web-tree-sitter` (WASM). No native build — one portable
+ * grammar runs everywhere (Node, browser, edge). The one-time async init
+ * (load the runtime + TypeScript grammar wasm) happens at module load via
+ * top-level await, so `extractSymbols` stays synchronous for callers.
+ *
+ * Assets are resolved from this package's own dependencies, so nocetta works
+ * standalone with no configuration. A host that wants a single shared parser
+ * injects its own {@link SymbolLocator} instead (see `locator.ts`).
+ */
+const require = createRequire(import.meta.url);
+await Parser.init({
+  locateFile: () => require.resolve("web-tree-sitter/tree-sitter.wasm"),
+});
+const language = await Language.load(require.resolve("tree-sitter-typescript/tree-sitter-typescript.wasm"));
 const parser = new Parser();
-// Pass the whole Language wrapper (not just `.language`) — the JS runtime
-// also reads `.nodeTypeInfo` off it to build per-type node subclasses.
-parser.setLanguage(TypeScript.typescript as unknown as Parameters<typeof parser.setLanguage>[0]);
+parser.setLanguage(language);
 
 /** Path-segment separator for symbol locators (settled in PLAN.md). */
 const SEP = " › ";
@@ -17,14 +30,14 @@ const SEP = " › ";
  * single space, trimmed. This is what gets hashed — a line-move or a
  * comment/formatting-only edit must not change the hash; a body edit must.
  */
-function normalizedSymbolText(node: Parser.SyntaxNode, source: string): string {
+function normalizedSymbolText(node: Node, source: string): string {
   const commentRanges: Array<[number, number]> = [];
-  (function collect(n: Parser.SyntaxNode) {
+  (function collect(n: Node) {
     if (n.type === "comment") {
       commentRanges.push([n.startIndex, n.endIndex]);
       return;
     }
-    for (const child of n.children) collect(child);
+    for (const child of n.children) if (child) collect(child);
   })(node);
   commentRanges.sort((a, b) => a[0] - b[0]);
 
@@ -42,12 +55,12 @@ function hashOf(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-function nameOf(node: Parser.SyntaxNode): string | null {
+function nameOf(node: Node): string | null {
   const nameNode = node.childForFieldName("name");
   return nameNode ? nameNode.text : null;
 }
 
-function isExported(node: Parser.SyntaxNode): boolean {
+function isExported(node: Node): boolean {
   return node.parent?.type === "export_statement";
 }
 
@@ -59,9 +72,10 @@ function isExported(node: Parser.SyntaxNode): boolean {
  */
 export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
   const tree = parser.parse(source);
+  if (!tree) return [];
   const symbols: SymbolInfo[] = [];
 
-  function addSymbol(node: Parser.SyntaxNode, segments: string[], kind: SymbolKind, name: string): void {
+  function addSymbol(node: Node, segments: string[], kind: SymbolKind, name: string): void {
     symbols.push({
       path: [filePath, ...segments].join(SEP),
       kind,
@@ -74,11 +88,11 @@ export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
     });
   }
 
-  function visit(node: Parser.SyntaxNode, prefix: string[]): void {
+  function visit(node: Node, prefix: string[]): void {
     switch (node.type) {
       case "export_statement": {
         for (const child of node.namedChildren) {
-          if (child.type !== "export_clause") visit(child, prefix);
+          if (child && child.type !== "export_clause") visit(child, prefix);
         }
         return;
       }
@@ -95,7 +109,7 @@ export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
         const body = node.childForFieldName("body");
         if (body) {
           for (const member of body.namedChildren) {
-            if (member.type === "method_definition") {
+            if (member && member.type === "method_definition") {
               const methodName = nameOf(member);
               if (methodName) addSymbol(member, [...newPrefix, `method ${methodName}`], "method", methodName);
             }
@@ -107,7 +121,7 @@ export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
         // Only exported top-level `const` declarations are symbols (per plan).
         if (!isExported(node) || node.firstChild?.type !== "const") return;
         for (const declarator of node.namedChildren) {
-          if (declarator.type !== "variable_declarator") continue;
+          if (!declarator || declarator.type !== "variable_declarator") continue;
           const nameNode = declarator.childForFieldName("name");
           if (nameNode?.type === "identifier") {
             addSymbol(node, [...prefix, `const ${nameNode.text}`], "const", nameNode.text);
@@ -120,12 +134,12 @@ export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
     }
   }
 
-  for (const child of tree.rootNode.namedChildren) visit(child, []);
+  for (const child of tree.rootNode.namedChildren) if (child) visit(child, []);
   return symbols;
 }
 
 /**
- * nocetta's default {@link SymbolLocator}: the built-in native tree-sitter
+ * nocetta's default {@link SymbolLocator}: the built-in WASM tree-sitter
  * extractor above. Used everywhere unless a host injects its own locator.
  */
-export const nativeLocator: SymbolLocator = { extractSymbols };
+export const defaultLocator: SymbolLocator = { extractSymbols };

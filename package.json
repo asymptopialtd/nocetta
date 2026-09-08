@@ -4,16 +4,42 @@
   "private": true,
   "type": "module",
   "description": "Anchored, bitemporal, DAG memory system for coding agents (spike).",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
-    "./store": { "types": "./dist/store/index.d.ts", "default": "./dist/store/index.js" },
-    "./retrieval": { "types": "./dist/retrieval/index.d.ts", "default": "./dist/retrieval/index.js" },
-    "./supersede": { "types": "./dist/supersede/index.d.ts", "default": "./dist/supersede/index.js" },
-    "./bitemporal": { "types": "./dist/bitemporal/index.d.ts", "default": "./dist/bitemporal/index.js" },
-    "./drift": { "types": "./dist/drift/index.d.ts", "default": "./dist/drift/index.js" },
-    "./anchor": { "types": "./dist/anchor/index.d.ts", "default": "./dist/anchor/index.js" },
-    "./lore": { "types": "./dist/lore/index.d.ts", "default": "./dist/lore/index.js" },
-    "./safety": { "types": "./dist/safety/index.d.ts", "default": "./dist/safety/index.js" },
+    "./store": {
+      "types": "./dist/store/index.d.ts",
+      "default": "./dist/store/index.js"
+    },
+    "./retrieval": {
+      "types": "./dist/retrieval/index.d.ts",
+      "default": "./dist/retrieval/index.js"
+    },
+    "./supersede": {
+      "types": "./dist/supersede/index.d.ts",
+      "default": "./dist/supersede/index.js"
+    },
+    "./bitemporal": {
+      "types": "./dist/bitemporal/index.d.ts",
+      "default": "./dist/bitemporal/index.js"
+    },
+    "./drift": {
+      "types": "./dist/drift/index.d.ts",
+      "default": "./dist/drift/index.js"
+    },
+    "./anchor": {
+      "types": "./dist/anchor/index.d.ts",
+      "default": "./dist/anchor/index.js"
+    },
+    "./lore": {
+      "types": "./dist/lore/index.d.ts",
+      "default": "./dist/lore/index.js"
+    },
+    "./safety": {
+      "types": "./dist/safety/index.d.ts",
+      "default": "./dist/safety/index.js"
+    },
     "./package.json": "./package.json"
   },
   "engines": {
@@ -27,8 +53,8 @@
   },
   "dependencies": {
     "js-yaml": "^4.1.0",
-    "tree-sitter": "^0.21.1",
-    "tree-sitter-typescript": "^0.21.2"
+    "tree-sitter-typescript": "^0.23.2",
+    "web-tree-sitter": "^0.25.10"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

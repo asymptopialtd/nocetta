@@ -1,4 +1,4 @@
-export { extractSymbols, nativeLocator } from "./symbols.js";
+export { extractSymbols, defaultLocator } from "./symbols.js";
 export type { SymbolLocator } from "./locator.js";
 export { locate } from "./locate.js";
 export { extractContentSpans, locateContent } from "./content.js";
