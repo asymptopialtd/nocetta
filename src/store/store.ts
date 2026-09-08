@@ -1,14 +1,28 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { scanForSecrets } from "../safety/never-leak.js";
 import { parseNode, serializeNode } from "./serialize.js";
 import type { MemoryNode } from "./types.js";
 
+export class NeverLeakError extends Error {
+  constructor(
+    public readonly nodeId: string,
+    public readonly violations: string[],
+  ) {
+    super(`refusing to write node "${nodeId}": ${violations.join("; ")}`);
+    this.name = "NeverLeakError";
+  }
+}
+
 /**
  * The single write choke-point for memory nodes. Every write in this codebase
- * goes through here, so cross-cutting gates (e.g. the never-leak secret gate,
- * Slice 7) apply everywhere without touching call sites.
+ * goes through here, so cross-cutting gates — the never-leak secret gate
+ * (Slice 7) chief among them — apply everywhere without touching call sites.
  */
 export function writeNode(dir: string, node: MemoryNode): void {
+  const violations = scanForSecrets(node);
+  if (violations.length > 0) throw new NeverLeakError(node.id, violations);
+
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, `${node.id}.md`), serializeNode(node), "utf8");
 }
