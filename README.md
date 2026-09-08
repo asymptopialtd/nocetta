@@ -62,8 +62,9 @@ anywhere global):
 tests — never a requirement. Set one only when the working directory is not inside
 the project you mean to remember.
 
-The server registers six tools whose descriptions teach themselves; copy `skills/nocetta/`
-into the project for the workflow contract (when to remember, when to recall, the worklist).
+The server registers six tools whose descriptions teach themselves, and the initialize
+response carries the workflow contract (when to remember, when to recall, the worklist) —
+no skill files to install; project-specific rules belong in the project's own AGENTS.md.
 
 **For a human — the library + CLI.** Install the tarball
 (`pnpm add nocetta@file:./nocetta-0.0.1.tgz`); `import { open } from "nocetta"` hosts the
@@ -136,7 +137,8 @@ In a repo with a `fetchWithRetry` function in `src/retry.ts`:
    → `1 nodes · 0 dirty · 0 conflicts · 0 issues`, exit 0.
 
 If the belief itself had changed, supersede; if its subject is gone, retire. Those are
-agent moves — the six MCP tools — and the skill file teaches when to reach for each.
+agent moves — the six MCP tools — and the initialize response's instructions teach when
+to reach for each.
 
 ### For humans
 

@@ -5,6 +5,7 @@ import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import { resolveRoot } from "../facade/root.js";
+import { INSTRUCTIONS } from "./instructions.js";
 import { TOOLS } from "./tools.js";
 
 const SERVER_NAME = "nocetta";
@@ -20,7 +21,7 @@ const SERVER_VERSION = "0.0.1";
  */
 export function createNocettaServer(repoRoot: string): McpServer {
   const nc = open(repoRoot);
-  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: INSTRUCTIONS });
   for (const tool of TOOLS) {
     server.registerTool(tool.name, { description: tool.description, inputSchema: tool.inputSchema }, (args) => ({
       content: [{ type: "text", text: tool.run(nc, args) }],

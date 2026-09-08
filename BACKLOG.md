@@ -219,10 +219,14 @@ A scripted eval may only be added later, and only by replaying recorded real ses
 
 ### Seam 7 — Skill kit + quickstart
 
-Landed: `skills/nocetta/SKILL.md` (the workflow contract — when to remember, when to
-recall with files-in-play, the worklist loop, capture rules) and `skills/nocetta/AGENTS.md`
-(the paste-in snippet), plus a README "Getting started" section: tarball install, MCP
-client config, a facade-driven 60-second tour, the CI gate snippet.
+The skill kit — `skills/nocetta/SKILL.md` (the workflow contract: when to remember, when
+to recall with files-in-play, the worklist loop, capture rules) plus `skills/nocetta/AGENTS.md`
+(the paste-in snippet) — landed in review round 1, alongside the README "Getting started"
+quickstart. Review round 3 settled it: skills are probabilistic delivery — agents do not
+consistently load them (He's experience, echoed by evidence) — so the contract moved into
+the server's `instructions` (the initialize response), with tool descriptions and outputs
+as the always-present layers. The skill kit is retired; project-specific rules belong in
+the adopting project's own AGENTS.md.
 
 ### Seam 8 — CLI + CI gate
 

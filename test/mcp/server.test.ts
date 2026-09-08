@@ -83,6 +83,25 @@ describe("nocetta MCP server (Seam 5)", () => {
     }
   });
 
+  it("the initialize response carries the workflow contract: the loop verbs, the store path, the guardrail", async () => {
+    // instructions are a delivery-guaranteed channel — they arrive at
+    // handshake, not by the model choosing to load anything
+    const instructions = client.getInstructions();
+    expect(instructions).toBeTruthy();
+    for (const verb of ["memory_search", "memory_remember", "memory_worklist", "memory_supersede"]) {
+      expect(instructions).toContain(verb);
+    }
+    expect(instructions).toContain(".nocetta/");
+    // case-insensitive: the guardrail opens a sentence ("Never store ...")
+    expect(instructions?.toLowerCase()).toContain("never store");
+  });
+
+  it("instructions carry the when-and-why, never a tool description's schema wording verbatim", async () => {
+    // the layering rule: mechanics live in tools/list; restating them in an
+    // always-on payload pays per session for what the descriptions already say
+    expect(client.getInstructions()).not.toContain("files_in_play are repo-relative paths");
+  });
+
   it("memory_remember resolves the anchor; the shaped result carries id and anchor; a files_in_play search finds it", async () => {
     const remembered = await callTool("memory_remember", {
       body: "foo returns the number one",
