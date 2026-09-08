@@ -3,19 +3,61 @@ import { locate } from "./locate.js";
 import type { SymbolLocator } from "./locator.js";
 import type { Anchor, LocateResult } from "./types.js";
 
-const CODE_EXTENSIONS = new Set([".ts", ".tsx"]);
+/** Which locator strategy an artifact takes, per its extension. */
+export type AnchorStrategy = "code" | "content";
 
-function extensionOf(path: string): string {
+/**
+ * The extension registry — the one map deciding which locator strategy an
+ * artifact takes. Capture (resolve.ts), repair (through resolve), and drift
+ * (locateAnchor) all route through it, so they can never fork into
+ * disagreeing routing. The map is closed on purpose: an extension not listed
+ * here is a hard, honest refusal (light 5), never a fallback parse — parsing
+ * a Python file's `#` comments as markdown headings is a wrong answer, not a
+ * best effort.
+ */
+export const ANCHOR_STRATEGY_BY_EXTENSION: Readonly<Record<string, AnchorStrategy>> = {
+  // The JS extensions deliberately ride the TypeScript grammar: it parses
+  // plain JS as a near-superset, so one grammar serves both and locator
+  // strings stay a single format.
+  ".ts": "code",
+  ".tsx": "code",
+  ".mts": "code",
+  ".cts": "code",
+  ".js": "code",
+  ".jsx": "code",
+  ".mjs": "code",
+  ".cjs": "code",
+  ".md": "content",
+  ".markdown": "content",
+};
+
+export function extensionOf(path: string): string {
   const dot = path.lastIndexOf(".");
   return dot === -1 ? "" : path.slice(dot);
 }
 
 /**
- * Dispatches to the right locator strategy by artifact extension: tree-sitter
- * symbols (Slice 1) for code, Markdown heading spans (Slice 8) for content
- * artifacts. Slice 3's check() calls this instead of the code-only `locate`
- * so it works uniformly across `claim`/`lore-fact` anchors.
+ * Registry lookup with the honest refusal attached. `verb` voices the error
+ * as the caller's own ("remember:", "reAnchor:"), matching each module's
+ * error-prefix convention; drift passes none. An extensionless artifact has
+ * no extension to name, so the path stands in.
+ */
+export function strategyFor(artifactPath: string, verb?: string): AnchorStrategy {
+  const ext = extensionOf(artifactPath);
+  const strategy = ANCHOR_STRATEGY_BY_EXTENSION[ext];
+  if (strategy) return strategy;
+  const named = ext === "" ? `"${artifactPath}" (no extension)` : `"${ext}"`;
+  throw new Error(
+    `${verb ? `${verb}: ` : ""}no anchor strategy for ${named} — anchored kinds support TypeScript/JavaScript sources and Markdown documents`,
+  );
+}
+
+/**
+ * Dispatches to the right locator strategy by the artifact's registry entry:
+ * tree-sitter symbols (Slice 1) for code, Markdown heading spans (Slice 8)
+ * for content artifacts. Slice 3's check() calls this instead of the
+ * code-only `locate` so it works uniformly across `claim`/`lore-fact` anchors.
  */
 export function locateAnchor(anchor: Anchor, sourceAfter: string, locator?: SymbolLocator): LocateResult {
-  return CODE_EXTENSIONS.has(extensionOf(anchor.artifactPath)) ? locate(anchor, sourceAfter, locator) : locateContent(anchor, sourceAfter);
+  return strategyFor(anchor.artifactPath) === "code" ? locate(anchor, sourceAfter, locator) : locateContent(anchor, sourceAfter);
 }

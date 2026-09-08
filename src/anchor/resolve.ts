@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extractContentSpans } from "./content.js";
+import { strategyFor } from "./locate-any.js";
 import { extractSymbols } from "./symbols.js";
 import type { Anchor } from "./types.js";
 
@@ -44,34 +45,38 @@ interface Candidate {
   hash: string;
 }
 
-const CODE_EXTENSIONS = new Set([".ts", ".tsx"]);
-
-function extensionOf(path: string): string {
-  const dot = path.lastIndexOf(".");
-  return dot === -1 ? "" : path.slice(dot);
-}
-
 /**
- * Exact-match resolution against the artifact's real source, dispatching the
- * same way anchor/locate-any.ts does (code extensions → tree-sitter symbols,
- * everything else → markdown heading spans; the ext registry in Seam 9 will
- * own this routing). Zero matches refuses naming the available candidates;
- * more than one refuses naming every candidate locator — an arbitrary pick
- * among same-named candidates is how drift is born.
+ * Exact-match resolution against the artifact's real source, routed by the
+ * shared extension registry (anchor/locate-any.ts) — the same map drift's
+ * locateAnchor uses, so capture, repair, and drift can never disagree about
+ * which files take which strategy. An unknown extension refuses in the
+ * caller's voice, and a request whose strategy contradicts the registry
+ * refuses rather than mis-parsing the artifact. Zero matches refuses naming
+ * the available candidates; more than one refuses naming every candidate
+ * locator — an arbitrary pick among same-named candidates is how drift is
+ * born.
  *
  * Shared by capture and repair (Seam 4): a re-anchor must never succeed where
  * a fresh remember of the same anchor would refuse.
  */
 export function resolveAnchor(target: AnchorTarget, opts: ResolveAnchorOptions): Anchor {
+  // The request is checked against the registry before the artifact is read:
+  // an unroutable request is a shape error, not an artifact-state error.
+  const strategy = strategyFor(target.artifactPath, opts.verb);
+  if (strategy !== target.strategy) {
+    throw new Error(
+      `${opts.verb}: "${target.artifactPath}" takes the ${strategy} strategy — ${
+        target.strategy === "code" ? "symbolName anchors TypeScript/JavaScript sources" : "heading anchors Markdown documents"
+      }`,
+    );
+  }
+
   const source = readSource(target.artifactPath, opts);
   if (source === undefined) {
     throw new Error(`${opts.verb}: could not read artifact "${target.artifactPath}" — refusing to write an unanchored guess`);
   }
 
   if (target.strategy === "code") {
-    if (!CODE_EXTENSIONS.has(extensionOf(target.artifactPath))) {
-      throw new Error(`${opts.verb}: no symbol locator strategy for "${target.artifactPath}" — symbolName anchors .ts/.tsx sources`);
-    }
     const candidate = requireSingleMatch(
       extractSymbols(target.artifactPath, source).map((s) => ({ name: s.name, path: s.path, hash: s.hash })),
       target.symbolName,

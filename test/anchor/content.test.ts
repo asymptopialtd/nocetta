@@ -64,6 +64,15 @@ describe("locateAnchor dispatcher", () => {
     expect(result.hashChanged).toBe(false);
   });
 
+  it("routes .markdown artifacts to the content locator — the alias behaves identically", () => {
+    const file = "lore/mage.markdown";
+    const span = extractContentSpans(file, before).find((s) => s.heading === "Mystra")!;
+    const anchor: Anchor = { locator: span.path, hash: "will-not-match", artifactPath: file };
+    const result = locateAnchor(anchor, before);
+    expect(result.found).toBe(true);
+    expect(result.hashChanged).toBe(true); // hash deliberately wrong above
+  });
+
   it("routes .ts artifacts to the code locator", () => {
     const src = "export function f(): number {\n  return 1;\n}\n";
     const anchor: Anchor = {
