@@ -64,7 +64,12 @@ export const TOOLS: readonly ToolDef[] = [
         );
       }
       const results = nc.search({ filesInPlay: files_in_play ?? [], keyword, scope, maxResults: max_results });
-      return results.length === 0 ? "no matching memories" : shapeLines(results.map(shapeHit));
+      if (results.length === 0) {
+        // The teachable moment: memory was just asked and didn't know —
+        // whatever the agent learns next is exactly what capture exists for.
+        return "no matching memories — if you learn the answer, it is a memory_remember candidate";
+      }
+      return shapeLines(results.map(shapeHit));
     },
   ),
 
@@ -82,7 +87,7 @@ export const TOOLS: readonly ToolDef[] = [
       symbol_name: z.string().optional().describe("Exact symbol name in artifact_path to anchor to (code files)"),
       heading: z.string().optional().describe("Exact markdown heading in artifact_path to anchor to"),
       scope: z.string().optional().describe("Scope, e.g. a repo-relative directory (default: \"global\")"),
-      authority: AUTHORITY.optional().describe('"invariant" outranks contradicting defaults — use sparingly (default: "default")'),
+      authority: AUTHORITY.optional().describe('"invariant" = a directive the user stated or a convention that must outrank contradicting defaults; your own conclusions stay "default" (default: "default")'),
       supersedes: z.string().optional().describe("Node id this fact replaces, in one call (capture-as-supersession)"),
     },
     (nc, { body, kind, artifact_path, symbol_name, heading, scope, authority, supersedes }) => {

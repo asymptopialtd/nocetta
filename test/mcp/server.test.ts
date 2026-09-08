@@ -92,8 +92,8 @@ describe("nocetta MCP server (Seam 5)", () => {
       expect(instructions).toContain(verb);
     }
     expect(instructions).toContain(".nocetta/");
-    // case-insensitive: the guardrail opens a sentence ("Never store ...")
-    expect(instructions?.toLowerCase()).toContain("never store");
+    // case-insensitive: the guardrail opens a sentence ("Skip transient ...")
+    expect(instructions?.toLowerCase()).toContain("skip transient");
   });
 
   it("instructions carry the when-and-why, never a tool description's schema wording verbatim", async () => {
@@ -124,7 +124,9 @@ describe("nocetta MCP server (Seam 5)", () => {
     expect(refused.text).toContain("refusing to write node");
 
     const found = await callTool("memory_search", { keyword: "password" });
-    expect(found.text).toBe("no matching memories");
+    // an empty result teaches capture: memory was asked and didn't know
+    expect(found.text).toContain("no matching memories");
+    expect(found.text).toContain("memory_remember");
   });
 
   it("memory_search shapes each line with id/kind/authority/anchor/body — and never a hash", async () => {
@@ -191,7 +193,8 @@ describe("nocetta MCP server (Seam 5)", () => {
     expect(JSON.parse(retired.text)).toMatchObject({ id, retiredReason: "foo is gone; the claim has no subject" });
 
     const found = await callTool("memory_search", { files_in_play: [FOO_PATH] });
-    expect(found.text).toBe("no matching memories");
+    expect(found.text).toContain("no matching memories");
+    expect(found.text).toContain("memory_remember");
   });
 
   it("memory_supersede: search resolves to the new belief, and memory_as_of at the old txnTime still returns the old", async () => {
