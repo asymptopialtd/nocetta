@@ -2,6 +2,7 @@
   "name": "nocetta",
   "version": "0.0.1",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "Anchored, bitemporal, DAG memory system for coding agents (spike).",
   "files": [
