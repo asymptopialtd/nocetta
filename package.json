@@ -1,0 +1,27 @@
+{
+  "name": "holdfast",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Anchored, bitemporal, DAG memory system for coding agents (spike).",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "tree-sitter": "^0.21.1",
+    "tree-sitter-typescript": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

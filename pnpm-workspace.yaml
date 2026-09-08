@@ -1,0 +1,8 @@
+onlyBuiltDependencies:
+  - tree-sitter
+  - tree-sitter-typescript
+  - esbuild
+allowBuilds:
+  esbuild: true
+  tree-sitter: true
+  tree-sitter-typescript: true
