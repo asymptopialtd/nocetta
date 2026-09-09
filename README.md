@@ -168,6 +168,8 @@ chars — readable in `ls` and `git log`; identity is always the frontmatter `id
 ```yaml
 ---
 id: string                  # stable node id (uuid-like, content-independent)
+summary: string              # one-line human preview; recall previews on this before body budget.
+                              # Optional — createNode derives a fallback from the body when omitted.
 kind: claim | value | entity | lore-fact
 scope: string                # e.g. a repo-relative directory, or "global"
 anchors:                     # zero or more; claims/lore-facts are typically anchored

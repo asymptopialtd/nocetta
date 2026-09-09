@@ -123,6 +123,28 @@ describe("nocetta MCP server (Seam 5)", () => {
     expect(lines(found.text).map((hit) => hit.id)).toEqual([shaped.id]);
   });
 
+  it("memory_remember accepts an explicit summary and surfaces it on recall", async () => {
+    await callTool("memory_remember", {
+      body: "foo returns the number one",
+      summary: "foo returns 1",
+      kind: "claim",
+      artifact_path: FOO_PATH,
+      symbol_name: "foo",
+    });
+    const found = lines((await callTool("memory_search", { files_in_play: [FOO_PATH] })).text);
+    expect(found[0]!.summary).toBe("foo returns 1");
+  });
+
+  it("memory_remember's notes add the verbose-body nudge only once the body is well past the threshold", async () => {
+    const short = await callTool("memory_remember", { body: "a short claim", kind: "claim" });
+    const shortNotes = (JSON.parse(short.text) as { notes: string[] }).notes;
+    expect(shortNotes.some((n) => n.includes("Why:"))).toBe(false);
+
+    const verbose = await callTool("memory_remember", { body: "x".repeat(1300), kind: "claim" });
+    const verboseNotes = (JSON.parse(verbose.text) as { notes: string[] }).notes;
+    expect(verboseNotes.some((n) => n.includes("**Why:**"))).toBe(true);
+  });
+
   it("a secret body comes back as an isError result carrying the never-leak refusal, and nothing is written", async () => {
     const refused = await callTool("memory_remember", { body: "the password: hunter2hunter2", kind: "claim" });
     expect(refused.isError).toBe(true);

@@ -6,6 +6,10 @@ import { shapeBelief, shapeHit, shapeLines, shapeWorklist } from "./shape.js";
 const KIND = z.enum(["claim", "value", "entity", "lore-fact"]);
 const AUTHORITY = z.enum(["invariant", "default"]);
 
+/** A body well past this is a candidate for the soft length nudge (decision
+ * 81b95760) — not a limit, just the line where the shape suggestion fires. */
+const VERBOSE_BODY_CHARS = 1200;
+
 export interface ToolDef {
   readonly name: string;
   readonly description: string;
@@ -77,12 +81,14 @@ export const TOOLS: readonly ToolDef[] = [
     "memory_remember",
     "Capture a durable fact so a future session recalls it here. kind is \"claim\" (a fact about code), \"value\" (a decision or convention), \"entity\" (a thing and its aliases) or \"lore-fact\" (a fact about docs/plans). " +
       "A fact about code or a doc should be anchored so it detects its own staleness: pass artifact_path plus symbol_name (the exact symbol name in that file, e.g. \"foo\") or heading (the exact markdown heading). " +
+      "Give a one-line summary when the fact isn't already one line; body should read as a lead sentence then **Why:**/**How to apply:** for anything with rationale, with [[wikilinks]] to related nodes. " +
       "Unknown or ambiguous anchor names are refused with the candidates — fix the name and retry; a body containing secrets is refused outright and nothing is written. " +
       "Conflict advisories come back as warnings: they are advice, the write still happened. " +
       'Example: {"body":"foo returns the number one","kind":"claim","artifact_path":"src/foo.ts","symbol":"foo"}.',
     {
-      body: z.string().min(1).describe("The fact itself, in prose"),
+      body: z.string().min(1).describe("The fact itself, in prose. Well past a line or two: shape it as a lead sentence, then **Why:** / **How to apply:**, with [[wikilinks]] to related nodes"),
       kind: KIND.describe("claim = fact about code, value = decision/convention, entity = thing + aliases, lore-fact = doc/plan fact"),
+      summary: z.string().optional().describe("One-line human-readable preview; recall previews on this before spending body budget. Derived from the body's first sentence when omitted"),
       artifact_path: z.string().optional().describe("Repo-relative path of the file to anchor to (required with symbol or heading)"),
       symbol_name: z.string().optional().describe("Exact symbol name in artifact_path to anchor to (code files)"),
       heading: z.string().optional().describe("Exact markdown heading in artifact_path to anchor to"),
@@ -90,10 +96,11 @@ export const TOOLS: readonly ToolDef[] = [
       authority: AUTHORITY.optional().describe('"invariant" = a directive the user stated or a convention that must outrank contradicting defaults; your own conclusions stay "default" (default: "default")'),
       supersedes: z.string().optional().describe("Node id this fact replaces, in one call (capture-as-supersession)"),
     },
-    (nc, { body, kind, artifact_path, symbol_name, heading, scope, authority, supersedes }) => {
+    (nc, { body, kind, summary, artifact_path, symbol_name, heading, scope, authority, supersedes }) => {
       const { node, superseded, warnings, file } = nc.remember({
         body,
         kind,
+        summary,
         artifactPath: artifact_path,
         symbolName: symbol_name,
         heading,
@@ -101,6 +108,19 @@ export const TOOLS: readonly ToolDef[] = [
         authority,
         supersedes,
       });
+      const notes = [
+        // Post-write staging hint (decision 5d24cc83): a nudge the agent acts
+        // on, never an auto `git add` — the tool result is the highest-
+        // leverage always-present channel for it.
+        `${file} is uncommitted — stage it with the change it documents if it belongs there`,
+      ];
+      if (body.length > VERBOSE_BODY_CHARS) {
+        // Soft length nudge (decision 81b95760): structure beats a hard cap
+        // — suggest the shape rather than truncate or refuse.
+        notes.push(
+          `body is ${body.length} chars — consider a lead sentence then **Why:**/**How to apply:** sections (with [[wikilinks]] to related nodes), or supersede this node with a tighter one`,
+        );
+      }
       return JSON.stringify({
         id: node.id,
         anchor: node.anchors.map((a) => a.locator),
@@ -108,10 +128,7 @@ export const TOOLS: readonly ToolDef[] = [
         ...(superseded ? { superseded: superseded.id } : {}),
         warnings,
         file,
-        // Post-write staging hint (decision 5d24cc83): a nudge the agent acts
-        // on, never an auto `git add` — the tool result is the highest-
-        // leverage always-present channel for it.
-        notes: [`${file} is uncommitted — stage it with the change it documents if it belongs there`],
+        notes,
       });
     },
   ),

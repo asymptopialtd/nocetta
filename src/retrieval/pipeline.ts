@@ -103,18 +103,67 @@ export interface BudgetOptions {
   maxBodyChars?: number;
 }
 
-/** Stage 5: top-k + token-budget cap. Always admits at least one result
- * (if any) even if its body alone exceeds the budget — the budget caps
- * accumulation, it doesn't produce an empty result set for a single hit. */
+/** The one-line label a body gets excerpted or replaced down to: the node's
+ * own summary when it has one (every node written since the summary field
+ * landed does), else the first line of the body — never nothing. */
+function previewLabel(node: MemoryNode): string {
+  return node.summary?.trim() || (node.body.trim().split("\n", 1)[0] ?? "").trim() || "(no summary)";
+}
+
+/** A node whose body alone blows the whole budget: never dropped, but its
+ * body is replaced by the preview label plus a marker naming how much prose
+ * is being held back — precision over silence (decision 81b95760). */
+function excerptToSummary(node: MemoryNode): MemoryNode {
+  const chars = node.body.length;
+  return { ...node, body: `${previewLabel(node)} … [body truncated, ${chars} chars — search this node's anchor to read in full]` };
+}
+
+/** A node ranked below the spent budget: still returned, body collapsed to
+ * just the preview label — a precise miss beats vanishing from the page. */
+function toSummaryOnly(node: MemoryNode): RankedCandidate["node"] {
+  return { ...node, body: previewLabel(node) };
+}
+
+/**
+ * Stage 5: top-k + token-budget cap, previewing on summaries rather than
+ * dropping once the budget is spent (decision 81b95760 — structure and
+ * summary-first previews are the fix for oversized recall, truncation is
+ * only the safety floor). Three admission modes, in order of preference:
+ *
+ * 1. Full body, while the cumulative budget has room.
+ * 2. A single node whose body alone exceeds the *entire* budget is still
+ *    admitted — excerpted to its summary plus a truncation marker — rather
+ *    than either dropped or allowed to crowd out every other result.
+ * 3. Once the cumulative budget is spent, every remaining ranked result (up
+ *    to maxResults) is still admitted summary-only instead of being cut —
+ *    a precise miss beats a null result.
+ *
+ * "Always admit at least one" falls out of this for free: the first
+ * candidate always lands in mode 1 or 2.
+ */
 export function applyBudget(ranked: RankedCandidate[], opts: BudgetOptions = {}): RankedCandidate[] {
   const maxResults = opts.maxResults ?? Infinity;
   const maxBodyChars = opts.maxBodyChars ?? Infinity;
   const out: RankedCandidate[] = [];
   let used = 0;
+  let budgetSpent = false;
+
   for (const candidate of ranked) {
     if (out.length >= maxResults) break;
     const cost = candidate.node.body.length;
-    if (out.length > 0 && used + cost > maxBodyChars) break;
+
+    if (!budgetSpent && cost > maxBodyChars) {
+      out.push({ ...candidate, node: excerptToSummary(candidate.node) });
+      budgetSpent = true; // this one alone already spent the whole budget
+      continue;
+    }
+    if (!budgetSpent && out.length > 0 && used + cost > maxBodyChars) {
+      budgetSpent = true;
+    }
+    if (budgetSpent) {
+      out.push({ ...candidate, node: toSummaryOnly(candidate.node) });
+      continue;
+    }
     used += cost;
     out.push(candidate);
   }

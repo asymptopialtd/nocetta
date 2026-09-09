@@ -111,6 +111,33 @@ describe("createNode", () => {
     const n = createNode({ kind: "claim", body: "b" });
     expect(parseNode(serializeNode(n))).toEqual(n);
   });
+
+  it("derives a fallback summary from the body's first sentence when none is given", () => {
+    const n = createNode({ kind: "claim", body: "foo returns 1. Some more detail follows here." });
+    expect(n.summary).toBe("foo returns 1.");
+  });
+
+  it("derives a fallback summary from the first line when the body has no sentence-ending punctuation", () => {
+    const n = createNode({ kind: "claim", body: "foo returns 1\nsome more detail follows here" });
+    expect(n.summary).toBe("foo returns 1");
+  });
+
+  it("caps the derived summary to ~120 chars with an ellipsis marker", () => {
+    const longSentence = `${"a".repeat(150)}.`;
+    const n = createNode({ kind: "claim", body: longSentence });
+    expect(n.summary!.length).toBeLessThanOrEqual(120);
+    expect(n.summary!.endsWith("…")).toBe(true);
+  });
+
+  it("lets an explicit summary win over the derived fallback", () => {
+    const n = createNode({ kind: "claim", body: "foo returns 1. detail.", summary: "foo returns one" });
+    expect(n.summary).toBe("foo returns one");
+  });
+
+  it("round-trips summary through serialize/parse alongside the other optional fields", () => {
+    const n = createNode({ kind: "claim", body: "b", summary: "a one-liner" });
+    expect(parseNode(serializeNode(n))).toEqual(n);
+  });
 });
 
 describe("remember", () => {

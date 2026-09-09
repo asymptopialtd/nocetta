@@ -22,6 +22,9 @@ export interface ShapedNode {
   anchor: string[];
   /** Present only when retire() closed the node (then the reason matters). */
   retiredReason?: string;
+  /** One-line preview. Absent only for a node written before the field
+   * existed and never re-anchored/superseded since. */
+  summary?: string;
   body: string;
 }
 
@@ -46,6 +49,7 @@ export function shapeNode(node: MemoryNode): ShapedNode {
     scope: node.scope,
     anchor: node.anchors.map((a) => a.locator),
     ...(node.retiredReason ? { retiredReason: node.retiredReason } : {}),
+    ...(node.summary ? { summary: node.summary } : {}),
     body: node.body,
   };
 }

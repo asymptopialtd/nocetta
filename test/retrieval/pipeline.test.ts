@@ -150,8 +150,8 @@ describe("rankCandidates", () => {
 });
 
 describe("applyBudget", () => {
-  function ranked(id: string, bodyLen: number, score: number): RankedCandidate {
-    return { node: node({ id, body: "x".repeat(bodyLen) }), matchedFiles: new Set(), score };
+  function ranked(id: string, bodyLen: number, score: number, summary?: string): RankedCandidate {
+    return { node: node({ id, body: "x".repeat(bodyLen), summary }), matchedFiles: new Set(), score };
   }
 
   it("caps at maxResults", () => {
@@ -160,12 +160,33 @@ describe("applyBudget", () => {
     expect(out.map((c) => c.node.id)).toEqual(["a", "b"]);
   });
 
-  it("stops accumulating once the body-char budget would be exceeded, but always keeps the first hit", () => {
-    const input = [ranked("a", 50, 3), ranked("b", 10, 2), ranked("c", 10, 1)];
+  // Decision 81b95760: once the cumulative body budget is spent, remaining
+  // ranked results are still returned (summary-only) rather than dropped —
+  // structure and summary-first previews are the fix for oversized recall,
+  // not silence.
+  it("keeps remaining ranked results once the body-char budget is spent, summary-only rather than dropped", () => {
+    const input = [ranked("a", 50, 3, "summary a"), ranked("b", 10, 2, "summary b"), ranked("c", 10, 1, "summary c")];
     const out = applyBudget(input, { maxBodyChars: 65 });
-    expect(out.map((c) => c.node.id)).toEqual(["a", "b"]);
+    expect(out.map((c) => c.node.id)).toEqual(["a", "b", "c"]); // nothing dropped
+    expect(out[0]!.node.body).toBe("x".repeat(50)); // within budget: full body
+    expect(out[1]!.node.body).toBe("x".repeat(10)); // still within budget: full body
+    expect(out[2]!.node.body).toBe("summary c"); // budget spent: summary-only, not dropped
+  });
 
-    const oversized = applyBudget([ranked("solo", 1000, 1)], { maxBodyChars: 10 });
+  it("excerpts a single node whose body alone exceeds the whole budget to its summary plus a truncation marker — never dropped", () => {
+    const oversized = applyBudget([ranked("solo", 1000, 1, "solo summary")], { maxBodyChars: 10 });
     expect(oversized.map((c) => c.node.id)).toEqual(["solo"]);
+    expect(oversized[0]!.node.body).toContain("solo summary");
+    expect(oversized[0]!.node.body).toContain("1000 chars");
+    expect(oversized[0]!.node.body).toMatch(/truncated/);
+  });
+
+  it("falls back to the body's first line as the preview label when a node has no summary", () => {
+    const input: RankedCandidate[] = [
+      ranked("a", 50, 2),
+      { node: node({ id: "b", body: "first line\nsecond line" }), matchedFiles: new Set(), score: 1 },
+    ];
+    const out = applyBudget(input, { maxBodyChars: 55 });
+    expect(out[1]!.node.body).toBe("first line");
   });
 });

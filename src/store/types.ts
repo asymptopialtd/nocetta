@@ -13,6 +13,13 @@ export interface EdgeRef {
 /** A memory node: the complete on-disk representation (frontmatter + body). */
 export interface MemoryNode {
   id: string;
+  /** One-line human-readable preview: what recall previews before spending
+   * body budget on the full text, and what the generated INDEX.md prints per
+   * node. Optional with a derived-fallback default (same reasoning as
+   * `version`): files written before the field existed must still parse
+   * as-is; createNode fills a fallback from the body whenever a caller omits
+   * one, so every new write carries one regardless. */
+  summary?: string;
   kind: NodeKind;
   scope: string;
   anchors: Anchor[];

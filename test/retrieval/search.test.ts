@@ -53,7 +53,7 @@ describe("searchMemory (full pipeline)", () => {
     expect(results).toEqual([]);
   });
 
-  it("respects maxResults and maxBodyChars end to end", () => {
+  it("respects maxResults; past maxBodyChars the rest still return, summary-only rather than dropped", () => {
     const nodes: MemoryNode[] = [];
     for (let i = 0; i < 5; i++) {
       nodes.push(
@@ -61,6 +61,7 @@ describe("searchMemory (full pipeline)", () => {
           id: `n${i}`,
           txnTime: new Date(2026, 0, i + 1).toISOString(),
           anchors: [{ locator: `${BILLING_PATH} › function calculateTotal`, hash: billingHash, artifactPath: BILLING_PATH }],
+          summary: `summary ${i}`,
           body: "x".repeat(20),
         }),
       );
@@ -71,7 +72,12 @@ describe("searchMemory (full pipeline)", () => {
       maxResults: 10,
       maxBodyChars: 45,
     });
-    expect(results.length).toBe(2); // 20 + 20 <= 45, +20 would exceed
+    // nothing anchored and live is dropped for being over budget
+    expect(results.length).toBe(5);
+    // 20 + 20 <= 45, +20 would exceed: two keep their full body...
+    expect(results.filter((r) => r.node.body === "x".repeat(20))).toHaveLength(2);
+    // ...the rest come back summary-only instead of vanishing
+    expect(results.filter((r) => r.node.body.startsWith("summary "))).toHaveLength(3);
   });
 });
 

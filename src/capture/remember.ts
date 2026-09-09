@@ -10,6 +10,9 @@ import { createNode } from "./create.js";
 export interface RememberRequest {
   body: string;
   kind: NodeKind;
+  /** One-line human-readable preview. Optional: createNode derives a
+   * fallback from the body when omitted, so every node still carries one. */
+  summary?: string;
   /** Repo-relative. Required when symbolName or heading is given. */
   artifactPath?: string;
   /** Code anchor: exact symbol-name match. Mutually exclusive with heading. */
@@ -98,6 +101,10 @@ export function remember(
     scope: req.scope ?? "global",
     authority: req.authority ?? "default",
     anchors: target ? [resolveAnchor(target, { ...opts, verb: "remember" })] : [],
+    // Omitted (not `summary: undefined`) so createNode's own derived
+    // fallback applies — an explicit `summary: undefined` key would spread
+    // over that default instead of falling through to it.
+    ...(req.summary !== undefined ? { summary: req.summary } : {}),
     // createNode's clock is real time; a deterministic one rides the same
     // explicit-values-win path.
     ...(opts.now !== undefined ? { validFrom: opts.now, txnTime: opts.now } : {}),

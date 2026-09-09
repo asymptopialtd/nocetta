@@ -104,6 +104,9 @@ export function validateNode(node: unknown): string[] {
   if (fm.version !== undefined && typeof fm.version !== "number") {
     reasons.push(`version must be a number (got ${JSON.stringify(fm.version)})`);
   }
+  if (fm.summary !== undefined && typeof fm.summary !== "string") {
+    reasons.push(`summary must be a string (got ${typeName(fm.summary)})`);
+  }
   if (fm.aliases !== undefined && (!Array.isArray(fm.aliases) || fm.aliases.some((alias) => typeof alias !== "string"))) {
     reasons.push("aliases must be an array of strings");
   }
