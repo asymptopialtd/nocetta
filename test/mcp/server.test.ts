@@ -110,9 +110,14 @@ describe("nocetta MCP server (Seam 5)", () => {
       symbol_name: "foo",
     });
     expect(remembered.isError).toBe(false);
-    const shaped = JSON.parse(remembered.text) as { id: string; anchor: string[]; warnings: string[] };
+    const shaped = JSON.parse(remembered.text) as { id: string; anchor: string[]; warnings: string[]; file: string; notes: string[] };
     expect(shaped.anchor).toEqual([`${FOO_PATH} › function foo`]);
     expect(shaped.warnings).toEqual([]);
+    // post-write staging hint (decision 5d24cc83): the written file's
+    // repo-relative path plus a nudge to stage it — never an auto git add.
+    expect(shaped.file).toMatch(/^\.nocetta\/memory\/.*\.md$/);
+    expect(shaped.notes[0]).toContain(shaped.file);
+    expect(shaped.notes[0]).toContain("uncommitted");
 
     const found = await callTool("memory_search", { files_in_play: [FOO_PATH] });
     expect(lines(found.text).map((hit) => hit.id)).toEqual([shaped.id]);

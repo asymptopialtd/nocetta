@@ -91,7 +91,7 @@ export const TOOLS: readonly ToolDef[] = [
       supersedes: z.string().optional().describe("Node id this fact replaces, in one call (capture-as-supersession)"),
     },
     (nc, { body, kind, artifact_path, symbol_name, heading, scope, authority, supersedes }) => {
-      const { node, superseded, warnings } = nc.remember({
+      const { node, superseded, warnings, file } = nc.remember({
         body,
         kind,
         artifactPath: artifact_path,
@@ -107,6 +107,11 @@ export const TOOLS: readonly ToolDef[] = [
         scope: node.scope,
         ...(superseded ? { superseded: superseded.id } : {}),
         warnings,
+        file,
+        // Post-write staging hint (decision 5d24cc83): a nudge the agent acts
+        // on, never an auto `git add` — the tool result is the highest-
+        // leverage always-present channel for it.
+        notes: [`${file} is uncommitted — stage it with the change it documents if it belongs there`],
       });
     },
   ),

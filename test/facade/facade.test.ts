@@ -137,6 +137,14 @@ describe("open() facade + loadRepoState (Seam 2)", () => {
     expect(nc.nodes()).toEqual([node]);
   });
 
+  it("remember surfaces the written file's repo-relative path (post-write staging hint)", () => {
+    const nc = open(repoRoot);
+    const { node, file } = nc.remember({ body: "foo returns the number one", kind: "claim", artifactPath: FOO_PATH, symbolName: "foo" });
+
+    expect(file).toBe(`${MEMORY_DIR}/${filenameFor(node)}`);
+    expect(existsSync(join(repoRoot, file))).toBe(true);
+  });
+
   it("supersede persists both nodes, closes the old, and search resolves to the tip", () => {
     const nc = open(repoRoot);
     const v1 = nc.remember({ body: "foo returns one", kind: "claim", artifactPath: FOO_PATH, symbolName: "foo" }).node;

@@ -16,7 +16,7 @@ import type { Conflict } from "../supersede/conflicts.js";
 import { overrideValue } from "../supersede/override.js";
 import { supersede } from "../supersede/supersede.js";
 import type { SupersedeOptions } from "../supersede/supersede.js";
-import { readStore, writeNode } from "../store/store.js";
+import { filenameFor, readStore, writeNode } from "../store/store.js";
 import type { StoreIssue } from "../store/store.js";
 import type { MemoryNode } from "../store/types.js";
 
@@ -60,7 +60,7 @@ export interface Nocetta {
     files: string[],
     opts?: Pick<SearchQuery, "scope" | "now" | "maxResults" | "maxBodyChars">,
   ): SearchResult[];
-  remember(req: RememberRequest): { node: MemoryNode; superseded: MemoryNode | null; warnings: string[] };
+  remember(req: RememberRequest): { node: MemoryNode; superseded: MemoryNode | null; warnings: string[]; file: string };
   supersede(oldId: string, next: MemoryNode, opts?: SupersedeOptions): { old: MemoryNode; next: MemoryNode };
   override(oldId: string, next: MemoryNode, reason: string, opts?: SupersedeOptions): { old: MemoryNode; next: MemoryNode };
   worklist(opts?: { now?: string }): Worklist;
@@ -151,10 +151,14 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
       return contextTriggered(cache, loadRepoState(repoRoot, cache), files, contextOpts, locator);
     },
 
-    remember(req: RememberRequest): { node: MemoryNode; superseded: MemoryNode | null; warnings: string[] } {
+    remember(req: RememberRequest): { node: MemoryNode; superseded: MemoryNode | null; warnings: string[]; file: string } {
       const result = remember(memoryDir, cache, req, { repoRoot });
       reload();
-      return result;
+      // Repo-relative, forward-slash always: MEMORY_DIR is already posix and
+      // filenameFor never emits separators, so string concatenation (not
+      // path.join, which would go backslash on Windows) is the honest
+      // relative path an agent hands straight to `git add`.
+      return { ...result, file: `${MEMORY_DIR}/${filenameFor(result.node)}` };
     },
 
     supersede(oldId: string, next: MemoryNode, supersedeOpts?: SupersedeOptions): { old: MemoryNode; next: MemoryNode } {
