@@ -3,7 +3,7 @@ id: 004ca01f-6402-4a4e-a51c-e0ff38c3dedc
 scope: global
 anchors:
   - locator: src/mcp/instructions.ts › const INSTRUCTIONS
-    hash: a5b7c4624bbcd5618ec718783c7bdf10842de496c0fcd04e7f14e25a076c1e9f
+    hash: c940cf53842ddb524f334fd25a27bcebcfa86b5f4f94a932d67284dd7b8d8e15
     artifactPath: src/mcp/instructions.ts
 edges: []
 validFrom: '2026-09-08T23:50:58.241Z'
