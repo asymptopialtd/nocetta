@@ -32,14 +32,14 @@ export interface CliResult {
 export const USAGE = `nocetta — anchored, bitemporal memory (the human/CI surface)
 
 usage:
-  nocetta check [--strict] [--root <dir>]    drift report + gate: dirty nodes, conflicts, quarantined files
+  nocetta check [--strict] [--root <dir>]    drift report + gate: dirty nodes, conflicts, duplicates, quarantined files
   nocetta worklist [--root <dir>]            the same report; reports, never gates (always exit 0)
   nocetta ls [--root <dir>] [--kind <kind>]  one line per node: id8, kind, authority, first 60 chars of body
 
 --strict makes check exit 1 when anything needs attention (dirty, conflicts,
-or issues); without it only an unreadable store fails — drift is normal in a
-moving repo, and CI passes --strict. --root defaults to discovery: the nearest
-ancestor holding .nocetta/ or .git/, else the working directory.
+duplicates, or issues); without it only an unreadable store fails — drift is
+normal in a moving repo, and CI passes --strict. --root defaults to discovery:
+the nearest ancestor holding .nocetta/ or .git/, else the working directory.
 `;
 
 const COMMANDS = ["check", "worklist", "ls"] as const;
@@ -119,11 +119,12 @@ export async function runCli(argv: string[]): Promise<CliResult> {
 
 function checkCommand(root: string, strict: boolean): CliResult {
   const report = survey(open(root));
-  const unhealthy = report.dirty.length > 0 || report.conflicts.length > 0 || report.issues.length > 0;
+  const unhealthy =
+    report.dirty.length > 0 || report.conflicts.length > 0 || report.duplicates.length > 0 || report.issues.length > 0;
   // The gate's asymmetry is the contract: issues (an unreadable store) fail
   // in both modes — an agent serving from a quarantined store is on sand —
-  // while drift and conflicts fail only under --strict, CI's explicit
-  // "make staleness break the build" mode.
+  // while drift, conflicts, and duplicates fail only under --strict, CI's
+  // explicit "make staleness break the build" mode.
   const code = report.issues.length > 0 || (strict && unhealthy) ? 1 : 0;
   return { code, out: render(report) };
 }
@@ -156,7 +157,8 @@ function lsCommand(root: string, kind: string | null): CliResult {
 }
 
 /** Everything the check/worklist report needs, gathered once: the worklist's
- * dirty+conflicts, the quarantine report, and the node total for the summary. */
+ * dirty+conflicts+duplicates, the quarantine report, and the node total for
+ * the summary. */
 interface Report extends Worklist {
   nodeCount: number;
   issues: StoreIssue[];
@@ -164,7 +166,7 @@ interface Report extends Worklist {
 
 function survey(nc: Nocetta): Report {
   const worklist = nc.worklist();
-  return { nodeCount: nc.nodes().length, dirty: worklist.dirty, conflicts: worklist.conflicts, issues: nc.issues() };
+  return { nodeCount: nc.nodes().length, dirty: worklist.dirty, conflicts: worklist.conflicts, duplicates: worklist.duplicates, issues: nc.issues() };
 }
 
 /** The display id — the same 8 chars the filename slug carries, so a report
@@ -204,12 +206,19 @@ function render(report: Report): string {
       lines.push(`    default    ${id8(conflict.defaultNode)}  ${bodyHead(conflict.defaultNode.body)}`);
     }
   }
+  if (report.duplicates.length > 0) {
+    lines.push(`duplicates (${report.duplicates.length}):`);
+    for (const duplicate of report.duplicates) {
+      lines.push(`  ${Math.round(duplicate.score * 100)}%  ${id8(duplicate.a)}  ${bodyHead(duplicate.a.body)}`);
+      lines.push(`        ${id8(duplicate.b)}  ${bodyHead(duplicate.b.body)}`);
+    }
+  }
   if (report.issues.length > 0) {
     lines.push(`issues (${report.issues.length}):`);
     for (const issue of report.issues) lines.push(`  ${issue.file}  ${issue.reason}`);
   }
   lines.push(
-    `${report.nodeCount} nodes · ${report.dirty.length} dirty · ${report.conflicts.length} conflicts · ${report.issues.length} issues`,
+    `${report.nodeCount} nodes · ${report.dirty.length} dirty · ${report.conflicts.length} conflicts · ${report.duplicates.length} dups · ${report.issues.length} issues`,
   );
   return `${lines.join("\n")}\n`;
 }

@@ -84,7 +84,7 @@ export const TOOLS: readonly ToolDef[] = [
       "Only claim and lore-fact anchor; value and entity are always unanchored — an anchor passed with them is refused. " +
       "Give a one-line summary when the fact isn't already one line; body should read as a lead sentence then **Why:**/**How to apply:** for anything with rationale, with [[wikilinks]] to related nodes. " +
       "Unknown or ambiguous anchor names are refused with the candidates — fix the name and retry; a body containing secrets is refused outright and nothing is written. " +
-      "Conflict advisories come back as warnings: they are advice, the write still happened. " +
+      "Conflict and duplicate advisories come back as warnings: they are advice, the write still happened. A duplicate advisory means the store already holds this belief — supersede the named node instead of keeping both, or drop the write. " +
       'Example: {"body":"foo returns the number one","kind":"claim","artifact_path":"src/foo.ts","symbol":"foo"}.',
     {
       body: z.string().min(1).describe("The fact itself, in prose. Well past a line or two: shape it as a lead sentence, then **Why:** / **How to apply:**, with [[wikilinks]] to related nodes"),
@@ -168,7 +168,7 @@ export const TOOLS: readonly ToolDef[] = [
 
   defineTool(
     "memory_worklist",
-    "What needs attention: dirty nodes (the code each is anchored to changed since capture — listed with the reason verbatim and the artifactPath to repair against), cross-authority conflicts that need a supersede, and quarantined store files. " +
+    "What needs attention: dirty nodes (the code each is anchored to changed since capture — listed with the reason verbatim and the artifactPath to repair against), cross-authority conflicts that need a supersede, duplicate pairs (two live beliefs saying the same thing — converge them by superseding the weaker copy), and quarantined store files. " +
       "Run it after edits or refactors, and before trusting recall. Dirty nodes are repaired via memory_repair (action \"reanchor\"), or retired there if the belief is simply gone. Example: {}.",
     {},
     (nc) => shapeWorklist(nc.worklist(), nc.issues()),

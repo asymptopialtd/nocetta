@@ -13,6 +13,8 @@ import type { ReAnchorRequest } from "../repair/re-anchor.js";
 import { retire } from "../repair/retire.js";
 import { findConflicts } from "../supersede/conflicts.js";
 import type { Conflict } from "../supersede/conflicts.js";
+import { findDuplicates } from "../supersede/duplicates.js";
+import type { Duplicate } from "../supersede/duplicates.js";
 import { overrideValue } from "../supersede/override.js";
 import { supersede } from "../supersede/supersede.js";
 import type { SupersedeOptions } from "../supersede/supersede.js";
@@ -31,13 +33,17 @@ export interface OpenOptions {
 }
 
 /**
- * One "what needs attention" surface: drift (reason verbatim) and
- * cross-authority conflicts. It reports; it does not repair — the facade's
- * reAnchor/retire are the actions that close what this list opens.
+ * One "what needs attention" surface: drift (reason verbatim), cross-authority
+ * conflicts, and duplicate pairs. It reports; it does not repair — the
+ * facade's reAnchor/retire/supersede are the actions that close what this
+ * list opens.
  */
 export interface Worklist {
   dirty: { node: MemoryNode; reason: string }[];
   conflicts: Conflict[];
+  /** Live beliefs that say the same thing — the accretion a warning-ignoring
+   * capture leaves behind. Converged by superseding one side. */
+  duplicates: Duplicate[];
 }
 
 /**
@@ -203,6 +209,7 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
           .map((id) => ({ node: byId.get(id)!, reason: reasons.get(id)! }))
           .sort((a, b) => a.node.id.localeCompare(b.node.id)),
         conflicts: findConflicts(live),
+        duplicates: findDuplicates(live),
       };
     },
 

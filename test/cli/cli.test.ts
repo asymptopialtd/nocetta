@@ -83,7 +83,7 @@ describe("nocetta CLI (Seam 8)", () => {
 
     const plain = await runCli(["check", "--root", repoRoot]);
     expect(plain.code).toBe(0);
-    expect(plain.out).toContain("1 nodes · 0 dirty · 0 conflicts · 0 issues");
+    expect(plain.out).toContain("1 nodes · 0 dirty · 0 conflicts · 0 dups · 0 issues");
 
     // a clean run prints exactly the summary line — no empty section headers
     const strict = await runCli(["check", "--strict", "--root", repoRoot]);
@@ -181,7 +181,7 @@ describe("nocetta CLI (Seam 8)", () => {
     expect(out).toContain("scope:deploys");
     expect(out).toContain(`invariant  ${INV_ID.slice(0, 8)}`);
     expect(out).toContain(`default    ${DEF_ID.slice(0, 8)}`);
-    expect(out).toContain("2 nodes · 0 dirty · 1 conflicts · 0 issues");
+    expect(out).toContain("2 nodes · 0 dirty · 1 conflicts · 0 dups · 0 issues");
   });
 
   it("unknown command exits 1 with usage; no command too; --help exits 0 with it", async () => {

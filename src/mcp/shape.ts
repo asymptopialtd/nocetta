@@ -92,11 +92,24 @@ export function shapeWorklist(worklist: Worklist, issues: readonly StoreIssue[])
       invariant: c.invariantNode.id,
       default: c.defaultNode.id,
     })),
+    duplicates: worklist.duplicates.map((d) => ({
+      a: d.a.id,
+      b: d.b.id,
+      score: Number(d.score.toFixed(2)),
+      summaryA: d.a.summary,
+      summaryB: d.b.summary,
+    })),
     issues: issues.map((issue) => ({ file: issue.file, reason: issue.reason })),
     ...(worklist.dirty.length > 0
       ? {
           repair:
             're-anchor a dirty node with memory_repair (action: "reanchor", giving symbol or heading); retire it there (action: "retire") if the belief is simply gone',
+        }
+      : {}),
+    ...(worklist.duplicates.length > 0
+      ? {
+          converge:
+            "converge a duplicate pair with memory_supersede — write the better-anchored/worded belief as the tip over the weaker id; the superseded belief stays in history",
         }
       : {}),
   });

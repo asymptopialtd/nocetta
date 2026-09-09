@@ -57,7 +57,9 @@ function sharesDiscriminatingToken(a: MemoryNode, b: MemoryNode, df: Map<string,
 
 const RELATION_TYPES = new Set(["superseded-by", "supersedes", "restates"]);
 
-function directlyRelated(a: MemoryNode, b: MemoryNode): boolean {
+/** Exported for duplicates.ts, which must likewise skip pairs a supersession
+ * or restatement already relates — the resolution working, not a problem. */
+export function directlyRelated(a: MemoryNode, b: MemoryNode): boolean {
   return (
     a.edges.some((e) => RELATION_TYPES.has(e.type) && e.target === b.id) ||
     b.edges.some((e) => RELATION_TYPES.has(e.type) && e.target === a.id)

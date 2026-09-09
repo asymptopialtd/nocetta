@@ -2,6 +2,8 @@ import { resolveAnchor } from "../anchor/resolve.js";
 import type { AnchorTarget } from "../anchor/resolve.js";
 import { findConflicts } from "../supersede/conflicts.js";
 import type { Conflict } from "../supersede/conflicts.js";
+import { findDuplicates } from "../supersede/duplicates.js";
+import type { Duplicate } from "../supersede/duplicates.js";
 import { supersede } from "../supersede/supersede.js";
 import { writeNode } from "../store/store.js";
 import type { Authority, MemoryNode, NodeKind } from "../store/types.js";
@@ -81,12 +83,23 @@ function warningFor(conflict: Conflict, newId: string): string {
   return `conflict advisory: "${newId}" (${mine.authority}) vs "${other.id}" (${other.authority}) on subject "${conflict.subject}" — both kept, nothing auto-resolved`;
 }
 
+function duplicateWarningFor(duplicate: Duplicate, newId: string): string {
+  const other = duplicate.a.id === newId ? duplicate.b : duplicate.a;
+  const preview = other.summary ?? other.body.replace(/\s+/g, " ");
+  return (
+    `duplicate advisory: the store already holds a belief that says this — "${other.id}" ` +
+    `(${Math.round(duplicate.score * 100)}% overlap) "${preview.slice(0, 60)}" — ` +
+    "if it states the same belief, supersede it (memory_supersede, keeping the better-anchored copy) or drop this write; if genuinely distinct, keep both"
+  );
+}
+
 /**
  * Capture: validate → resolve the anchor against the artifact's real source →
- * build via createNode → supersede in memory → collect conflict advisories →
- * persist through the writeNode choke-point. The never-leak gate stays inside
- * writeNode (nothing here re-implements or bypasses it); conflicts are
- * advisory only — they come back as `warnings` and never block a write.
+ * build via createNode → supersede in memory → collect conflict and duplicate
+ * advisories → persist through the writeNode choke-point. The never-leak gate
+ * stays inside writeNode (nothing here re-implements or bypasses it);
+ * advisories are advisory only — they come back as `warnings` and never block
+ * a write.
  * Resolution is the shared exact-match machinery (anchor/resolve.ts) called
  * in capture's own voice, so repair can never resolve where capture refuses.
  */
@@ -122,9 +135,20 @@ export function remember(
     finalNode = result.next;
   }
 
-  const warnings = findConflicts([...nodes, finalNode])
-    .filter((c) => c.invariantNode.id === finalNode.id || c.defaultNode.id === finalNode.id)
-    .map((c) => warningFor(c, finalNode.id));
+  const warnings = [
+    ...findConflicts([...nodes, finalNode])
+      .filter((c) => c.invariantNode.id === finalNode.id || c.defaultNode.id === finalNode.id)
+      .map((c) => warningFor(c, finalNode.id)),
+    // A duplicate advisory is the convergence nudge: the store already holds
+    // this belief (the double-onboarding failure mode), and the agent is
+    // reading this at the exact moment the cheaper move — supersede, don't
+    // accrete — is still available. The node this write already supersedes
+    // is the resolution, not a duplicate.
+    ...findDuplicates([...nodes, finalNode])
+      .filter((d) => d.a.id === finalNode.id || d.b.id === finalNode.id)
+      .filter((d) => req.supersedes === undefined || (d.a.id !== req.supersedes && d.b.id !== req.supersedes))
+      .map((d) => duplicateWarningFor(d, finalNode.id)),
+  ];
 
   // The new node lands first: if the gate refuses it, the old fact stands
   // untouched — a supersession never tears.
