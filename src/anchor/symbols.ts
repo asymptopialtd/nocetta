@@ -1,14 +1,21 @@
-import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { Language, Parser, type Node } from "web-tree-sitter";
+import { extractGdscriptSymbols } from "./symbols-gdscript.js";
+import { SEP, hashOf, normalizedSymbolText } from "./symbol-hash.js";
 import type { SymbolInfo, SymbolKind } from "./types.js";
 import type { SymbolLocator } from "./locator.js";
 
 /**
- * Parser backend: `web-tree-sitter` (WASM). No native build — one portable
- * grammar runs everywhere (Node, browser, edge). The one-time async init
- * (load the runtime + TypeScript grammar wasm) happens at module load via
- * top-level await, so `extractSymbols` stays synchronous for callers.
+ * Parser backend: `web-tree-sitter` (WASM) for TypeScript/JavaScript. No
+ * native build for the TS grammar — one portable grammar runs everywhere
+ * (Node, browser, edge). The one-time async init (load the runtime + grammar
+ * wasm) happens at module load via top-level await, so `extractSymbols` stays
+ * synchronous for callers.
+ *
+ * GDScript is the exception: its only grammar ships as a native binding, not a
+ * wasm (settled with He, 2026-09-09 — the first non-TS/JS dogfood was a Godot
+ * project). `.gd` sources dispatch to {@link extractGdscriptSymbols}, which
+ * carries the native-vs-wasm caveat; everything else stays on this wasm path.
  *
  * Assets are resolved from this package's own dependencies, so nocetta works
  * standalone with no configuration. A host that wants a single shared parser
@@ -22,39 +29,6 @@ const language = await Language.load(require.resolve("tree-sitter-typescript/tre
 const parser = new Parser();
 parser.setLanguage(language);
 
-/** Path-segment separator for symbol locators (settled in PLAN.md). */
-const SEP = " › ";
-
-/**
- * Normalized content: comments stripped, runs of whitespace collapsed to a
- * single space, trimmed. This is what gets hashed — a line-move or a
- * comment/formatting-only edit must not change the hash; a body edit must.
- */
-function normalizedSymbolText(node: Node, source: string): string {
-  const commentRanges: Array<[number, number]> = [];
-  (function collect(n: Node) {
-    if (n.type === "comment") {
-      commentRanges.push([n.startIndex, n.endIndex]);
-      return;
-    }
-    for (const child of n.children) if (child) collect(child);
-  })(node);
-  commentRanges.sort((a, b) => a[0] - b[0]);
-
-  let out = "";
-  let cursor = node.startIndex;
-  for (const [start, end] of commentRanges) {
-    if (start > cursor) out += source.slice(cursor, start);
-    cursor = Math.max(cursor, end);
-  }
-  out += source.slice(cursor, node.endIndex);
-  return out.replace(/\s+/g, " ").trim();
-}
-
-function hashOf(text: string): string {
-  return createHash("sha256").update(text).digest("hex");
-}
-
 function nameOf(node: Node): string | null {
   const nameNode = node.childForFieldName("name");
   return nameNode ? nameNode.text : null;
@@ -66,7 +40,7 @@ function nameOf(node: Node): string | null {
  * declarations and class members are considered — no nested-function
  * extraction in this spike.
  */
-export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
+function extractTsSymbols(filePath: string, source: string): SymbolInfo[] {
   const tree = parser.parse(source);
   if (!tree) return [];
   const symbols: SymbolInfo[] = [];
@@ -139,7 +113,19 @@ export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
 }
 
 /**
- * nocetta's default {@link SymbolLocator}: the built-in WASM tree-sitter
- * extractor above. Used everywhere unless a host injects its own locator.
+ * Enumerate stable-path symbols from a source file, routed to the grammar its
+ * extension takes. `.gd` (GDScript) goes to the native binding; every other
+ * code extension the registry admits (TypeScript, and JavaScript riding the TS
+ * grammar) goes to the wasm parser above. The locator-string format is
+ * identical across both, so an anchor reads the same whatever the language.
+ */
+export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
+  if (filePath.toLowerCase().endsWith(".gd")) return extractGdscriptSymbols(filePath, source);
+  return extractTsSymbols(filePath, source);
+}
+
+/**
+ * nocetta's default {@link SymbolLocator}: the built-in extractors above.
+ * Used everywhere unless a host injects its own locator.
  */
 export const defaultLocator: SymbolLocator = { extractSymbols };

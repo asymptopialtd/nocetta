@@ -7,7 +7,7 @@ import type { Anchor } from "../../src/anchor/index.js";
 // anchors through the TypeScript grammar), and that unknown extensions refuse
 // honestly instead of mis-parsing.
 describe("the anchor extension registry", () => {
-  it("is closed: exactly the eight code and two content extensions, no implicit default", () => {
+  it("is closed: exactly the nine code and two content extensions, no implicit default", () => {
     expect(ANCHOR_STRATEGY_BY_EXTENSION).toEqual({
       ".ts": "code",
       ".tsx": "code",
@@ -17,6 +17,7 @@ describe("the anchor extension registry", () => {
       ".jsx": "code",
       ".mjs": "code",
       ".cjs": "code",
+      ".gd": "code",
       ".md": "content",
       ".markdown": "content",
     });
@@ -24,13 +25,13 @@ describe("the anchor extension registry", () => {
 
   it("refuses .py honestly, naming the extension — never a wrong-strategy parse", () => {
     expect(() => strategyFor("src/model.py")).toThrow(
-      'no anchor strategy for ".py" — anchored kinds support TypeScript/JavaScript sources and Markdown documents',
+      'no anchor strategy for ".py" — anchored kinds support TypeScript/JavaScript and GDScript sources and Markdown documents',
     );
   });
 
   it("refuses an extensionless artifact, naming the path in place of the extension it lacks", () => {
     expect(() => strategyFor("Dockerfile")).toThrow(
-      'no anchor strategy for "Dockerfile" (no extension) — anchored kinds support TypeScript/JavaScript sources and Markdown documents',
+      'no anchor strategy for "Dockerfile" (no extension) — anchored kinds support TypeScript/JavaScript and GDScript sources and Markdown documents',
     );
   });
 

@@ -1,10 +1,17 @@
 # nocetta is a single-package repo; this file records pnpm's dependency-build
-# policy. We use web-tree-sitter's prebuilt WASM, so the tree-sitter grammars
-# need NO native build (their addons are never loaded). Only esbuild (vitest's
-# transpiler) legitimately builds.
+# policy. The TypeScript/JavaScript grammars run as prebuilt WASM (web-tree-sitter),
+# so their native addons are never loaded and need no build. GDScript is the
+# exception: its only grammar ships as a native addon, so tree-sitter (the
+# node binding) and tree-sitter-gdscript are allowed to build — node-gyp-build
+# uses the shipped prebuild where one matches and compiles only otherwise.
+# esbuild (vitest's transpiler) also builds legitimately.
 onlyBuiltDependencies:
   - esbuild
+  - tree-sitter
+  - tree-sitter-gdscript
 allowBuilds:
   esbuild: true
   tree-sitter-typescript: false
   tree-sitter-javascript: false
+  tree-sitter: true
+  tree-sitter-gdscript: true
