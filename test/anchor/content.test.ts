@@ -106,6 +106,24 @@ describe("locateContent", () => {
     const result = locateContent(anchor, after);
     expect(result.found).toBe(false);
   });
+
+  it("resolves to the unchanged span by hash when a duplicate heading appears, not to whichever parsed first", () => {
+    const anchor = anchorFor(before, "Elminster");
+    // A second "# Elminster" section is added with different content: the path
+    // now names two spans, so binding to the first-parsed one could be wrong.
+    const after = `${before}\n# Elminster\n\nAn impostor with the same name.\n`;
+    const result = locateContent(anchor, after);
+    expect(result.found).toBe(true);
+    expect(result.hashChanged).toBe(false);
+  });
+
+  it("misses honestly when the locator path names two identical spans — true ambiguity is never a guess", () => {
+    const dupTable = `# Facts\n\n| id | status |\n| --- | --- |\n| GAP·stream | open |\n| GAP·stream | open |\n`;
+    const anchor = rowAnchorFor(dupTable, "GAP·stream");
+    // Both rows are byte-identical, so the two spans share path AND hash —
+    // nothing distinguishes them, so resolution refuses rather than guessing.
+    expect(locateContent(anchor, dupTable).found).toBe(false);
+  });
 });
 
 describe("locateAnchor dispatcher", () => {

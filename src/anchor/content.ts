@@ -113,9 +113,17 @@ export function extractContentSpans(filePath: string, source: string): ContentSp
 export function locateContent(anchor: Anchor, sourceAfter: string): LocateResult {
   const spans = extractContentSpans(anchor.artifactPath, sourceAfter);
 
-  const exact = spans.find((s) => s.path === anchor.locator);
-  if (exact) {
-    return { found: true, hashChanged: exact.hash !== anchor.hash, symbol: toSymbolInfo(exact) };
+  // A single span at the locator path is the unambiguous hit. Headings and
+  // table-row ids are not guaranteed unique — a doc can grow a second `## Notes`
+  // or a second row with the same first cell — so when the path names more than
+  // one span, do NOT bind to whichever parsed first (the duplicate-line trap:
+  // identical handles must resolve by content or refuse, never guess). Fall
+  // through to hash disambiguation, which resolves to the one unchanged span or
+  // honestly misses.
+  const samePath = spans.filter((s) => s.path === anchor.locator);
+  if (samePath.length === 1) {
+    const hit = samePath[0]!;
+    return { found: true, hashChanged: hit.hash !== anchor.hash, symbol: toSymbolInfo(hit) };
   }
 
   const heading = anchor.locator.split("#").pop();
