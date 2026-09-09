@@ -35,4 +35,4 @@ Go in this order, and keep each layer thin:
 
 3. Stop. Don't sweep up the long tail — it gets captured later, when real work actually consults it. Over-seeding rebuilds a document dump, the one thing this store must not be.
 
-Two habits throughout. Be skeptical of the corpus: when two sources disagree, that contradiction is itself a finding — capture both and let it surface, don't smooth it over. And when you're done, run memory_worklist once; it shows you the contradictions your own seeding just exposed. Then report what you captured and what you deliberately left out.`;
+Two habits throughout. Be skeptical of the corpus: when two sources disagree — a doc and the code, an old rule and a new one — that contradiction is itself a finding. Capture the true one and use supersedes to retire the stale belief, so history keeps both and recall serves only the live one. Don't lean on memory_worklist to find these: it flags beliefs that share an anchor and disagree on authority, not a doc-versus-code mismatch across two files. Run it once at the end for the ones it can catch, then report what you captured and what you deliberately left out.`;

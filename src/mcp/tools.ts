@@ -81,6 +81,7 @@ export const TOOLS: readonly ToolDef[] = [
     "memory_remember",
     "Capture a durable fact so a future session recalls it here. kind is \"claim\" (a fact about code), \"value\" (a decision or convention), \"entity\" (a thing and its aliases) or \"lore-fact\" (a fact about docs/plans). " +
       "A fact about code or a doc should be anchored so it detects its own staleness: pass artifact_path plus symbol_name (the exact symbol name in that file, e.g. \"foo\") or heading (the exact markdown heading). " +
+      "Only claim and lore-fact anchor; value and entity are always unanchored — an anchor passed with them is refused. " +
       "Give a one-line summary when the fact isn't already one line; body should read as a lead sentence then **Why:**/**How to apply:** for anything with rationale, with [[wikilinks]] to related nodes. " +
       "Unknown or ambiguous anchor names are refused with the candidates — fix the name and retry; a body containing secrets is refused outright and nothing is written. " +
       "Conflict advisories come back as warnings: they are advice, the write still happened. " +
