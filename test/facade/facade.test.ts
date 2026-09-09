@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -334,6 +334,33 @@ describe("open() facade + loadRepoState (Seam 2)", () => {
     nc.reload();
     expect(nc.issues()).toEqual([]);
     expect(nc.nodes().map((n) => n.id).sort()).toEqual(["good-1", "repaired-1"]);
+  });
+
+  it("regenerates .nocetta/INDEX.md (never inside MEMORY_DIR) with one line per current node, omitting a superseded and a retired one", () => {
+    const nc = open(repoRoot);
+    const live = nc.remember({ body: "foo returns the number one", kind: "claim", artifactPath: FOO_PATH, symbolName: "foo", summary: "foo returns 1" });
+    const toSupersede = nc.remember({ body: "an old belief", kind: "value" });
+    const toRetire = nc.remember({ body: "a belief about to be retired", kind: "value" });
+    nc.supersede(toSupersede.node.id, node({ id: "tip-of-old", body: "the corrected belief" }));
+    nc.retire(toRetire.node.id, "its subject is gone");
+
+    const indexPath = join(repoRoot, ".nocetta", "INDEX.md");
+    expect(existsSync(indexPath)).toBe(true);
+    const text = readFileSync(indexPath, "utf8");
+
+    // current: the live claim (by its summary) and the supersession tip
+    expect(text).toContain("foo returns 1");
+    expect(text).toContain("the corrected belief");
+    // never a hand-edit invitation
+    expect(text).toMatch(/auto-generated/i);
+    // excluded: the superseded old node and the retired node
+    expect(text).not.toContain("an old belief");
+    expect(text).not.toContain("a belief about to be retired");
+
+    // INDEX.md sits beside memory/, not inside it — readStore (via nc.nodes())
+    // never trips over it as a malformed node.
+    expect(nc.issues()).toEqual([]);
+    expect(existsSync(join(repoRoot, MEMORY_DIR, "INDEX.md"))).toBe(false);
   });
 
   it("asOf returns the belief the store held at a transaction time", () => {

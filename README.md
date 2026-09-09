@@ -144,7 +144,9 @@ to reach for each.
 
 The CLI's `ls` browses the store one line per node; each memory is a markdown file under
 `.nocetta/memory/` — open them, hand-edit them (reads quarantine what they can't parse),
-git them.
+git them. `.nocetta/INDEX.md` (beside `memory/`, not inside it) is a generated one-line-
+per-current-node listing, rewritten on every write — never hand-edit it, it never survives
+the next mutation.
 
 ### CI
 

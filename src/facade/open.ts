@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { SymbolLocator } from "../anchor/locator.js";
 import { asOf } from "../bitemporal/as-of.js";
 import { remember } from "../capture/remember.js";
@@ -16,6 +16,7 @@ import type { Conflict } from "../supersede/conflicts.js";
 import { overrideValue } from "../supersede/override.js";
 import { supersede } from "../supersede/supersede.js";
 import type { SupersedeOptions } from "../supersede/supersede.js";
+import { isCurrent, writeIndex } from "../store/index-file.js";
 import { filenameFor, readStore, writeNode } from "../store/store.js";
 import type { StoreIssue } from "../store/store.js";
 import type { MemoryNode } from "../store/types.js";
@@ -116,6 +117,10 @@ function persistSupersession(memoryDir: string, result: { old: MemoryNode; next:
  */
 export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
   const memoryDir = join(repoRoot, MEMORY_DIR);
+  // The store root is MEMORY_DIR's parent, derived rather than a second
+  // hardcoded layout — INDEX.md lives there, never inside MEMORY_DIR itself,
+  // or readStore would try to parse it as a node.
+  const storeRoot = dirname(memoryDir);
   const locator = opts.locator;
 
   let cache: MemoryNode[] = [];
@@ -126,6 +131,11 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
     quarantined = read.issues;
   };
   reload();
+
+  // Regenerate the human-facing index (decision 162d74f3) after every
+  // mutation reloads the cache — fully rewritten from the current node set,
+  // never hand-maintained, so it can never go stale.
+  const regenerateIndex = (): void => writeIndex(storeRoot, cache);
 
   return {
     repoRoot,
@@ -154,6 +164,7 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
     remember(req: RememberRequest): { node: MemoryNode; superseded: MemoryNode | null; warnings: string[]; file: string } {
       const result = remember(memoryDir, cache, req, { repoRoot });
       reload();
+      regenerateIndex();
       // Repo-relative, forward-slash always: MEMORY_DIR is already posix and
       // filenameFor never emits separators, so string concatenation (not
       // path.join, which would go backslash on Windows) is the honest
@@ -165,6 +176,7 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
       const result = supersede(cache, oldId, next, supersedeOpts);
       persistSupersession(memoryDir, result);
       reload();
+      regenerateIndex();
       return result;
     },
 
@@ -172,6 +184,7 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
       const result = overrideValue(cache, oldId, next, reason, overrideOpts);
       persistSupersession(memoryDir, result);
       reload();
+      regenerateIndex();
       return result;
     },
 
@@ -182,12 +195,7 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
     // `now` bounds the validity window; deterministic tests pass it explicitly.
     worklist(worklistOpts: { now?: string } = {}): Worklist {
       const now = worklistOpts.now ?? new Date().toISOString();
-      const live = cache.filter(
-        (n) =>
-          !n.edges.some((e) => e.type === "superseded-by") &&
-          n.validFrom <= now &&
-          (n.validTo === null || n.validTo > now),
-      );
+      const live = cache.filter((n) => isCurrent(n, now));
       const { dirty, reasons } = check(live, loadRepoState(repoRoot, live), locator);
       const byId = new Map(live.map((n) => [n.id, n]));
       return {
@@ -201,12 +209,14 @@ export function open(repoRoot: string, opts: OpenOptions = {}): Nocetta {
     reAnchor(nodeId: string, req: ReAnchorRequest): MemoryNode {
       const repaired = reAnchor(memoryDir, cache, nodeId, req, { repoRoot });
       reload();
+      regenerateIndex();
       return repaired;
     },
 
     retire(nodeId: string, reason: string): MemoryNode {
       const retired = retire(memoryDir, cache, nodeId, reason);
       reload();
+      regenerateIndex();
       return retired;
     },
 
