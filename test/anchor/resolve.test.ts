@@ -36,3 +36,32 @@ describe("resolveAnchor routing refusals", () => {
     ).toThrow(/remember: "lore\/mage\.md" takes the content strategy — symbolName anchors TypeScript\/JavaScript sources/);
   });
 });
+
+// Heading matching tolerates surrounding whitespace and case only — never
+// substring/fuzzy matching, which risks anchoring the wrong heading.
+describe("heading matching tolerates whitespace and case", () => {
+  const MD = "# Elminster\n\nArchmage of Shadowdale.\n";
+
+  it("resolves a heading that differs only in surrounding whitespace and case", () => {
+    const result = resolveAnchor(
+      { strategy: "content", artifactPath: "lore/mage.md", heading: "  elminster  " },
+      { verb: "remember", readArtifact: () => MD },
+    );
+    expect(result.locator).toBe("lore/mage.md#Elminster");
+  });
+
+  it("still refuses honestly, listing candidates, when nothing matches even normalized", () => {
+    expect(() =>
+      resolveAnchor({ strategy: "content", artifactPath: "lore/mage.md", heading: "Mystra" }, { verb: "remember", readArtifact: () => MD }),
+    ).toThrow(/no heading named "Mystra" in "lore\/mage\.md" — available headings: Elminster/);
+  });
+
+  it("does not extend the tolerance to symbol names — code identifiers stay byte-exact", () => {
+    expect(() =>
+      resolveAnchor(
+        { strategy: "code", artifactPath: "src/foo.ts", symbolName: "FOO" },
+        { verb: "remember", readArtifact: () => "export function foo(): number {\n  return 1;\n}\n" },
+      ),
+    ).toThrow(/no symbol named "FOO" in "src\/foo\.ts" — available symbols: foo/);
+  });
+});

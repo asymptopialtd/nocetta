@@ -12,7 +12,7 @@ function anchorFor(source: string, path: string): Anchor {
 }
 
 describe("extractSymbols", () => {
-  it("enumerates functions, classes, methods, and exported consts with stable paths", () => {
+  it("enumerates functions, classes, methods, and top-level consts (exported or not) with stable paths", () => {
     const source = `
 export function greet(name: string): string {
   return "hi " + name;
@@ -26,7 +26,15 @@ class Widget {
 
 export const DEFAULT_SIZE = 42;
 
-const internalOnly = "not a symbol";
+const internalOnly = "a file-local const is a symbol too";
+
+function inner(): void {
+  const nested = "never a symbol — visit() never descends into a function body";
+  void nested;
+}
+
+let mutable = "let is never a symbol";
+void mutable;
 `;
     const symbols = extractSymbols(FILE, source);
     const paths = symbols.map((s) => s.path).sort();
@@ -36,10 +44,13 @@ const internalOnly = "not a symbol";
         `${FILE} › class Widget`,
         `${FILE} › class Widget › method render`,
         `${FILE} › const DEFAULT_SIZE`,
+        `${FILE} › const internalOnly`,
+        `${FILE} › function inner`,
       ].sort(),
     );
-    // a non-exported top-level const is not a symbol
-    expect(symbols.some((s) => s.name === "internalOnly")).toBe(false);
+    // nested and `let` declarations are still never symbols
+    expect(symbols.some((s) => s.name === "nested")).toBe(false);
+    expect(symbols.some((s) => s.name === "mutable")).toBe(false);
   });
 });
 

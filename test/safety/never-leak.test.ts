@@ -101,4 +101,29 @@ describe("never-leak write gate", () => {
     const secret = node({ id: "leak-b64", body: "leaked token: aB3dE/fGh9Ij0kLm1nOp2qRs3tUv4wXy5zA6bC7dE8f=" });
     expect(() => writeNode(dir, secret)).toThrow(NeverLeakError);
   });
+
+  // Regression: dogfooding surfaced `+`-joined identifier runs (component
+  // chains named in prose) tripping the entropy check the same way
+  // slash-joined paths used to.
+  it("allows a +-joined identifier chain", () => {
+    expect(() =>
+      writeNode(dir, node({ id: "fp-plus", body: "the request flows through SessionStore+SystemPrompt+ToolRuntime before dispatch" })),
+    ).not.toThrow();
+  });
+
+  it("still catches a real high-entropy secret and redacts it in the violation message rather than echoing it whole", () => {
+    const secretToken = "Q7mK2pL9vT4xR8wZ1nB6cF3dH5jY0sU2eG";
+    const secret = node({ id: "leak-entropy-preview", body: `found in the logs: ${secretToken}` });
+    let caught: unknown;
+    try {
+      writeNode(dir, secret);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NeverLeakError);
+    const message = (caught as InstanceType<typeof NeverLeakError>).message;
+    // a preview (first 6 + last 2 chars), never the full token
+    expect(message).toContain(`${secretToken.slice(0, 6)}…${secretToken.slice(-2)}`);
+    expect(message).not.toContain(secretToken);
+  });
 });

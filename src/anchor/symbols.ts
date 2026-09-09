@@ -60,13 +60,9 @@ function nameOf(node: Node): string | null {
   return nameNode ? nameNode.text : null;
 }
 
-function isExported(node: Node): boolean {
-  return node.parent?.type === "export_statement";
-}
-
 /**
- * Enumerate stable-path symbols (functions, classes, methods, exported
- * top-level consts) from a TypeScript source file. Only top-level
+ * Enumerate stable-path symbols (functions, classes, methods, top-level
+ * consts — exported or not) from a TypeScript source file. Only top-level
  * declarations and class members are considered — no nested-function
  * extraction in this spike.
  */
@@ -118,8 +114,12 @@ export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
         return;
       }
       case "lexical_declaration": {
-        // Only exported top-level `const` declarations are symbols (per plan).
-        if (!isExported(node) || node.firstChild?.type !== "const") return;
+        // Top-level `const` declarations are symbols, exported or not — a
+        // file-local config array/lookup table can be anchored too. `let`
+        // stays unindexed (mutable, not a stable subject to anchor to), and
+        // `visit` only ever runs on top-level nodes, so nested-scope consts
+        // (inside a function body) are never reached here.
+        if (node.firstChild?.type !== "const") return;
         for (const declarator of node.namedChildren) {
           if (!declarator || declarator.type !== "variable_declarator") continue;
           const nameNode = declarator.childForFieldName("name");

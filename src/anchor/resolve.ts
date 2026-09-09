@@ -97,6 +97,18 @@ export function resolveAnchor(target: AnchorTarget, opts: ResolveAnchorOptions):
   return { locator: candidate.path, hash: candidate.hash, artifactPath: target.artifactPath };
 }
 
+/**
+ * Heading matching tolerates surrounding whitespace and case — a heading
+ * typed back slightly differently ("  Deployment  ", "deployment") still
+ * resolves — but nothing fuzzier: no substring or prefix matching, which
+ * would risk anchoring to the wrong heading (noise is a product killer,
+ * memory ddc165f1). Symbol names stay byte-exact; a code identifier's case
+ * is part of its identity.
+ */
+function normalizeForMatch(noun: "symbol" | "heading", name: string): string {
+  return noun === "heading" ? name.trim().replace(/\s+/g, " ").toLowerCase() : name;
+}
+
 function requireSingleMatch(
   all: Candidate[],
   requested: string,
@@ -104,7 +116,8 @@ function requireSingleMatch(
   noun: "symbol" | "heading",
   verb: string,
 ): Candidate {
-  const matches = all.filter((c) => c.name === requested);
+  const target = normalizeForMatch(noun, requested);
+  const matches = all.filter((c) => normalizeForMatch(noun, c.name) === target);
   if (matches.length === 1) return matches[0]!;
   if (matches.length === 0) {
     const available = [...new Set(all.map((c) => c.name))];

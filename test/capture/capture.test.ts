@@ -166,6 +166,19 @@ describe("remember", () => {
     expect(onDisk!.version).toBe(1);
   });
 
+  it("resolves a code anchor to a non-exported top-level const", () => {
+    const source = `const INTERNAL_LIMIT = 10;\n\nexport function useIt(): number {\n  return INTERNAL_LIMIT;\n}\n`;
+    const result = remember(
+      dir,
+      [],
+      { body: "INTERNAL_LIMIT caps the internal batch size", kind: "claim", artifactPath: "src/internal.ts", symbolName: "INTERNAL_LIMIT" },
+      { readArtifact: (p) => (p === "src/internal.ts" ? source : undefined), now: NOW },
+    );
+    expect(result.node.anchors).toEqual([
+      { locator: "src/internal.ts › const INTERNAL_LIMIT", hash: expect.any(String), artifactPath: "src/internal.ts" },
+    ]);
+  });
+
   it("resolves a heading anchor: .md artifacts route to the content-span extractor", () => {
     const result = remember(
       dir,

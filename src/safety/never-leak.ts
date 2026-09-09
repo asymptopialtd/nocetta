@@ -48,13 +48,15 @@ const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0
 
 /**
  * Whether a candidate is a separator-joined run of low-entropy words — a path,
- * a slash-joined term list, or a snake/kebab identifier — rather than a dense
- * secret blob. Its length comes from the `/`, `-`, `_` separators between short
- * word-like pieces, not from randomness. A real base64/base64url secret split
- * on those separators yields long, high-entropy pieces, so it is NOT excluded.
+ * a slash-joined term list, a snake/kebab identifier, or a `+`/`.`-joined
+ * identifier chain (e.g. "SessionStore+SystemPrompt+ToolRuntime") — rather
+ * than a dense secret blob. Its length comes from the separators between
+ * short word-like pieces, not from randomness. A real base64/base64url
+ * secret split on those separators yields long, high-entropy pieces, so it
+ * is NOT excluded.
  */
 function isSeparatorJoinedWords(s: string): boolean {
-  const segments = s.split(/[/_-]/).filter((seg) => seg.length > 0);
+  const segments = s.split(/[/_+.-]/).filter((seg) => seg.length > 0);
   if (segments.length < 2) return false;
   // Each piece is a short, low-entropy chunk — a word, a number, or a hex
   // quartet (paths carry numeric/hex segments too). A real secret's pieces stay
@@ -100,7 +102,14 @@ export function scanForSecrets(node: MemoryNode): string[] {
   }
 
   const token = findHighEntropyToken(node.body);
-  if (token) violations.push(`body contains a high-entropy token shape (${token.length} chars)`);
+  if (token) {
+    // A redacted preview (first 6 + last 2 chars — every candidate is at
+    // least 24 chars long, so this never exposes more than a fraction of
+    // it) lets a writer locate the offending run without the full token
+    // ever being echoed back.
+    const preview = `${token.slice(0, 6)}…${token.slice(-2)}`;
+    violations.push(`body contains a high-entropy token shape (${token.length} chars: ${preview})`);
+  }
 
   return violations;
 }
