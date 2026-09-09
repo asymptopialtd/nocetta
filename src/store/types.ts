@@ -40,4 +40,9 @@ export interface MemoryNode {
   /** `entity` nodes only: alternate names resolved to this canonical node
    * (the canonical name itself is the node's `body`). Slice 8. */
   aliases?: string[];
+  /** The git commit (short or full SHA, agent-supplied) this fact is tied
+   * to — e.g. the commit that landed the behavior a claim describes. Stored
+   * and surfaced only; nocetta never interprets or verifies it. Optional:
+   * files written before the field existed must still parse as-is. */
+  commit?: string;
 }

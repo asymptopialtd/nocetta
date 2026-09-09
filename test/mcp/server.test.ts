@@ -135,6 +135,12 @@ describe("nocetta MCP server (Seam 5)", () => {
     expect(found[0]!.summary).toBe("foo returns 1");
   });
 
+  it("memory_remember accepts a commit and surfaces it on recall", async () => {
+    await callTool("memory_remember", { body: "foo was fixed to return 1", kind: "claim", commit: "deadbeef" });
+    const found = lines((await callTool("memory_search", { keyword: "foo was fixed" })).text);
+    expect(found[0]!.commit).toBe("deadbeef");
+  });
+
   it("memory_remember's notes add the verbose-body nudge only once the body is well past the threshold", async () => {
     const short = await callTool("memory_remember", { body: "a short claim", kind: "claim" });
     const shortNotes = (JSON.parse(short.text) as { notes: string[] }).notes;

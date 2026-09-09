@@ -25,6 +25,9 @@ export interface RememberRequest {
   authority?: Authority;
   /** Capture-as-supersession: the new node supersedes this id in one call. */
   supersedes?: string;
+  /** The git commit this fact ties to. Stored and surfaced only — nocetta
+   * never interprets or verifies it. */
+  commit?: string;
 }
 
 export interface RememberOptions {
@@ -105,6 +108,7 @@ export function remember(
     // fallback applies — an explicit `summary: undefined` key would spread
     // over that default instead of falling through to it.
     ...(req.summary !== undefined ? { summary: req.summary } : {}),
+    ...(req.commit !== undefined ? { commit: req.commit } : {}),
     // createNode's clock is real time; a deterministic one rides the same
     // explicit-values-win path.
     ...(opts.now !== undefined ? { validFrom: opts.now, txnTime: opts.now } : {}),

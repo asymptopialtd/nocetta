@@ -95,8 +95,9 @@ export const TOOLS: readonly ToolDef[] = [
       scope: z.string().optional().describe("Scope, e.g. a repo-relative directory (default: \"global\")"),
       authority: AUTHORITY.optional().describe('"invariant" = a directive the user stated or a convention that must outrank contradicting defaults; your own conclusions stay "default" (default: "default")'),
       supersedes: z.string().optional().describe("Node id this fact replaces, in one call (capture-as-supersession)"),
+      commit: z.string().optional().describe("The git commit (short or full SHA) this fact ties to — stored and surfaced only, never interpreted"),
     },
-    (nc, { body, kind, summary, artifact_path, symbol_name, heading, scope, authority, supersedes }) => {
+    (nc, { body, kind, summary, artifact_path, symbol_name, heading, scope, authority, supersedes, commit }) => {
       const { node, superseded, warnings, file } = nc.remember({
         body,
         kind,
@@ -107,6 +108,7 @@ export const TOOLS: readonly ToolDef[] = [
         scope,
         authority,
         supersedes,
+        commit,
       });
       const notes = [
         // Post-write staging hint (decision 5d24cc83): a nudge the agent acts

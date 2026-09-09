@@ -25,6 +25,8 @@ export interface ShapedNode {
   /** One-line preview. Absent only for a node written before the field
    * existed and never re-anchored/superseded since. */
   summary?: string;
+  /** The git commit this fact ties to, when the caller supplied one. */
+  commit?: string;
   body: string;
 }
 
@@ -50,6 +52,7 @@ export function shapeNode(node: MemoryNode): ShapedNode {
     anchor: node.anchors.map((a) => a.locator),
     ...(node.retiredReason ? { retiredReason: node.retiredReason } : {}),
     ...(node.summary ? { summary: node.summary } : {}),
+    ...(node.commit ? { commit: node.commit } : {}),
     body: node.body,
   };
 }

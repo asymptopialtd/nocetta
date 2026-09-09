@@ -179,6 +179,18 @@ describe("remember", () => {
     ]);
   });
 
+  it("stores an optional commit field, round-tripped through the choke-point", () => {
+    const result = remember(
+      dir,
+      [],
+      { body: "foo returns 1", kind: "claim", commit: "abc1234" },
+      { now: NOW },
+    );
+    expect(result.node.commit).toBe("abc1234");
+    const [onDisk] = readAll(dir);
+    expect(onDisk!.commit).toBe("abc1234");
+  });
+
   it("resolves a heading anchor: .md artifacts route to the content-span extractor", () => {
     const result = remember(
       dir,

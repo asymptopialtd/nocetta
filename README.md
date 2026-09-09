@@ -189,6 +189,7 @@ authority: invariant | default
 overrideReason: string | null # set only when a `default` authority is overridden
 retiredReason: string | null  # set only when retire() closed the node — why its valid-time window shut
 version: number               # frontmatter format version (createNode stamps 1)
+commit: string                # optional: the git commit this fact ties to — stored/surfaced only, never interpreted
 ---
 
 Body text (prose). For `claim`/`lore-fact` nodes this is the asserted content; for `value`

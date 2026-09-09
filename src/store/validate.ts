@@ -107,6 +107,9 @@ export function validateNode(node: unknown): string[] {
   if (fm.summary !== undefined && typeof fm.summary !== "string") {
     reasons.push(`summary must be a string (got ${typeName(fm.summary)})`);
   }
+  if (fm.commit !== undefined && typeof fm.commit !== "string") {
+    reasons.push(`commit must be a string (got ${typeName(fm.commit)})`);
+  }
   if (fm.aliases !== undefined && (!Array.isArray(fm.aliases) || fm.aliases.some((alias) => typeof alias !== "string"))) {
     reasons.push("aliases must be an array of strings");
   }
