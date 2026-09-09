@@ -3,7 +3,7 @@ id: 2285e74d-2046-47ba-8232-0985876d40b6
 scope: global
 anchors:
   - locator: src/anchor/locate-any.ts › const ANCHOR_STRATEGY_BY_EXTENSION
-    hash: 723e91255e5c10e95e9f47de4c972c15b7fa3f208dfa3480717f70957406b85c
+    hash: 99ccad17f55a2bf1acc9a121553a4b904d43d9e172ffb4218db795a9bda65b32
     artifactPath: src/anchor/locate-any.ts
 edges: []
 validFrom: '2026-09-08T18:46:41.386Z'

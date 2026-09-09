@@ -4,7 +4,7 @@ summary: Onboarding an existing project is a once-per-project MCP prompt (`onboa
 scope: global
 anchors:
   - locator: src/mcp/onboard.ts › const ONBOARD_PROMPT
-    hash: 13dd8ad1add1ecd63e731f6b034152805b7c4fc23fe20efcbc010dd698f9f02e
+    hash: f0a962f7a039be0931963207908a82a99e1c31733eef47f8c45ee56aec5af5ae
     artifactPath: src/mcp/onboard.ts
 edges: []
 validFrom: '2026-09-09T13:52:22.657Z'
