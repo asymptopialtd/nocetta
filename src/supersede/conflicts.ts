@@ -1,4 +1,4 @@
-import { sharesSignificantToken } from "../text/tokens.js";
+import { significantTokens } from "../text/tokens.js";
 import type { MemoryNode } from "../store/types.js";
 
 export interface Conflict {
@@ -17,6 +17,42 @@ function subjectKey(node: MemoryNode): string {
       .join("|");
   }
   return `scope:${node.scope}`;
+}
+
+/**
+ * A word most parties in a group use names the *domain*, not a subject. In a
+ * store whose every belief is about "memory"/"recall"/"node", those words are
+ * ambient vocabulary — a collision on one is not evidence two beliefs are about
+ * the same thing (dogfood 2026-09-09: every fresh invariant flagged against
+ * every unrelated default in scope:global). Document frequency is the measure:
+ * a token carried by more than half the parties — and by more than the two in
+ * question, so a word shared by only the pair always still counts — is ambient.
+ */
+const DOMAIN_DF_RATIO = 0.5;
+
+function documentFrequency(parties: MemoryNode[]): Map<string, number> {
+  const df = new Map<string, number>();
+  for (const node of parties) {
+    for (const token of significantTokens(node.body)) {
+      df.set(token, (df.get(token) ?? 0) + 1);
+    }
+  }
+  return df;
+}
+
+/**
+ * Positive subject evidence for an UNANCHORED pair: a word both bodies use that
+ * is not ambient across the corpus. `max(2, …)` keeps a word shared by only the
+ * pair (df 2) discriminating even in a tiny store, while a word most of the
+ * store uses is filtered out — precision over recall, as the plan demands.
+ */
+function sharesDiscriminatingToken(a: MemoryNode, b: MemoryNode, df: Map<string, number>, total: number): boolean {
+  const ambientAbove = Math.max(2, total * DOMAIN_DF_RATIO);
+  const bTokens = significantTokens(b.body);
+  for (const token of significantTokens(a.body)) {
+    if (bTokens.has(token) && (df.get(token) ?? 0) <= ambientAbove) return true;
+  }
+  return false;
 }
 
 const RELATION_TYPES = new Set(["superseded-by", "supersedes", "restates"]);
@@ -43,8 +79,10 @@ function directlyRelated(a: MemoryNode, b: MemoryNode): boolean {
  *   is not "about the same thing" (dogfood: a closed-source policy vs a
  *   test-runner preference, same global scope, flagged as contradicting). An
  *   unanchored pair conflicts only on positive evidence of shared subject:
- *   vocabulary both bodies actually use. Anchored pairs need no such gate —
- *   the shared locator IS the subject.
+ *   vocabulary both bodies use that is *not* ambient across the store (see
+ *   {@link sharesDiscriminatingToken} — a word most beliefs use names the
+ *   domain, not a subject). Anchored pairs need no such gate — the shared
+ *   locator IS the subject.
  */
 export function findConflicts(nodes: MemoryNode[]): Conflict[] {
   const groups = new Map<string, MemoryNode[]>();
@@ -65,8 +103,9 @@ export function findConflicts(nodes: MemoryNode[]): Conflict[] {
     const parties = group.filter((n) => n.kind !== "entity");
     const invariants = parties.filter((n) => n.authority === "invariant");
     const defaults = parties.filter((n) => n.authority === "default");
+    const df = documentFrequency(parties);
     const sameSubject = (a: MemoryNode, b: MemoryNode): boolean =>
-      a.anchors.length > 0 || sharesSignificantToken(a.body, b.body);
+      a.anchors.length > 0 || sharesDiscriminatingToken(a, b, df, parties.length);
     for (const invariantNode of invariants) {
       for (const defaultNode of defaults) {
         if (!directlyRelated(invariantNode, defaultNode) && sameSubject(invariantNode, defaultNode)) {

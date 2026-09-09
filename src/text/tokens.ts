@@ -29,20 +29,9 @@ export function tokenize(text: string): string[] {
   return text.toLowerCase().match(/[a-z0-9']+/g) ?? [];
 }
 
-/** The words that could name a subject — stopwords stripped. */
+/** The words that could name a subject — stopwords stripped. The conflict
+ * gate weighs these by document frequency (a word most beliefs use names the
+ * domain, not a subject); the raw set is the shared source of "subject word". */
 export function significantTokens(text: string): Set<string> {
   return new Set(tokenize(text).filter((t) => !STOPWORDS.has(t)));
-}
-
-/**
- * Whether two bodies share any subject-bearing word. One source for every
- * consumer (conflict gating, contradiction flagging) so "same topic" can
- * never mean two different things in the codebase.
- */
-export function sharesSignificantToken(a: string, b: string): boolean {
-  const bTokens = significantTokens(b);
-  for (const token of significantTokens(a)) {
-    if (bTokens.has(token)) return true;
-  }
-  return false;
 }

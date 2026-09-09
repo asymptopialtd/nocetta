@@ -153,6 +153,22 @@ describe("findConflicts", () => {
     expect(conflicts[0]).toMatchObject({ invariantNode: { id: "policy" }, defaultNode: { id: "heresy" } });
   });
 
+  it("treats domain-ubiquitous vocabulary as ambient, not subject evidence, but keeps a distinctive shared subject", () => {
+    // The live-store shape (dogfood 2026-09-09): every belief is about
+    // memory/recall, so a single shared domain word must NOT flag two unrelated
+    // beliefs — only a word the rest of the store does not lean on can.
+    const corpus = [
+      node({ id: "inv", kind: "value", scope: "global", authority: "invariant", body: "memory recall stays current-only, superseded beliefs never served" }),
+      node({ id: "d1", kind: "value", scope: "global", authority: "default", body: "memory nodes carry a one-line summary for recall previews" }),
+      node({ id: "d2", kind: "value", scope: "global", authority: "default", body: "memory capture writes through one choke point" }),
+      node({ id: "d3", kind: "value", scope: "global", authority: "default", body: "memory anchors resolve against real code symbols" }),
+      node({ id: "d4", kind: "value", scope: "global", authority: "default", body: "recall should serve superseded beliefs freely while debugging" }),
+    ];
+    // "memory"/"recall" are ambient → d1..d3 share only those with inv and do
+    // not conflict; d4 shares the distinctive "superseded beliefs" subject.
+    expect(findConflicts(corpus).map((c) => c.defaultNode.id)).toEqual(["d4"]);
+  });
+
   it("dead beliefs do not conflict — a disagreement among the dead is not attention-worthy", () => {
     const policy = node({ id: "policy", kind: "value", scope: "global", authority: "invariant", body: "always use pnpm for package installs" });
     const dead = node({ id: "dead", kind: "value", scope: "global", authority: "default", body: "yarn is fine for package installs", edges: [{ type: "superseded-by", target: "heir" }] });
