@@ -261,4 +261,19 @@ describe("nocetta MCP server (Seam 5)", () => {
     expect(refused.isError).toBe(true);
     expect(refused.text).toContain(`no symbol named "nope"`);
   });
+
+  it("the onboard prompt is exposed off the six-tool cap and carries the receipt-gate discipline", async () => {
+    const { prompts } = await client.listPrompts();
+    expect(prompts.map((p) => p.name)).toContain("onboard");
+
+    const { messages } = await client.getPrompt({ name: "onboard" });
+    expect(messages).toHaveLength(1);
+    const [message] = messages;
+    expect(message!.role).toBe("user");
+    const text = message!.content.type === "text" ? message!.content.text : "";
+    // The two properties that make it a belief-seeding pass and not a corpus
+    // dump: every belief must cite a receipt, and completeness is a failure.
+    expect(text).toContain("receipt");
+    expect(text).toContain("completeness is the failure mode");
+  });
 });

@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import { resolveRoot } from "../facade/root.js";
 import { INSTRUCTIONS } from "./instructions.js";
+import { ONBOARD_PROMPT } from "./onboard.js";
 import { TOOLS } from "./tools.js";
 
 const SERVER_NAME = "nocetta";
@@ -18,6 +19,10 @@ const SERVER_VERSION = "0.0.1";
  * { isError: true, text: message } result, so the facade's honest refusals
  * (ambiguous symbol, never-leak, unknown id) reach the agent verbatim, never
  * as stack traces (light 5).
+ *
+ * The one prompt (`onboard`) is off the six-tool cap on purpose: it is a
+ * once-per-project seeding protocol, invoked on demand, not a per-session tool
+ * — so it delivers a payload the always-present INSTRUCTIONS must never carry.
  */
 export function createNocettaServer(repoRoot: string): McpServer {
   const nc = open(repoRoot);
@@ -27,6 +32,15 @@ export function createNocettaServer(repoRoot: string): McpServer {
       content: [{ type: "text", text: tool.run(nc, args) }],
     }));
   }
+  server.registerPrompt(
+    "onboard",
+    {
+      title: "Seed nocetta for an existing project",
+      description:
+        "One-time guided distillation for a project already underway: capture the load-bearing beliefs the store should have started with, each anchored to its receipt. Run once, when the store is empty.",
+    },
+    () => ({ messages: [{ role: "user", content: { type: "text", text: ONBOARD_PROMPT } }] }),
+  );
   return server;
 }
 
