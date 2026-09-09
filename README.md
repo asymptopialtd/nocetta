@@ -176,7 +176,9 @@ kind: claim | value | entity | lore-fact
 scope: string                # e.g. a repo-relative directory, or "global"
 anchors:                     # zero or more; claims/lore-facts are typically anchored
   - locator: string          # "path/to/file.ts › class Foo › method bar" (code)
-                              # or "path/to/doc.md#Heading" (content-artifact span, Slice 8)
+                              # or "path/to/doc.md#Heading" (content-artifact span, Slice 8) —
+                              # a Markdown table's data rows are spans too, keyed by their
+                              # first cell (e.g. "path/to/doc.md#GAP·stream"), additive to headings
     hash: string              # normalized content hash at write time
     artifactPath: string      # repo-relative path of the anchored artifact
 edges:                        # relations to other node ids

@@ -31,6 +31,58 @@ describe("extractContentSpans", () => {
   });
 });
 
+const withTable = `# Facts
+
+| id | status |
+| --- | --- |
+| GAP·stream | open |
+| GAP·batch | closed |
+
+# Notes
+
+Nothing here is a table row.
+`;
+
+function rowAnchorFor(source: string, rowId: string): Anchor {
+  const span = extractContentSpans(FILE, source).find((s) => s.heading === rowId);
+  if (!span) throw new Error(`fixture bug: no row ${rowId}`);
+  return { locator: span.path, hash: span.hash, artifactPath: FILE };
+}
+
+describe("extractContentSpans — table-row anchors (additive to headings)", () => {
+  it("extracts one span per data row, keyed by the row's first cell, alongside the heading spans", () => {
+    const spans = extractContentSpans(FILE, withTable);
+    const rowSpans = spans.filter((s) => s.heading === "GAP·stream" || s.heading === "GAP·batch");
+    expect(rowSpans).toHaveLength(2);
+    expect(rowSpans.map((s) => s.path)).toEqual([`${FILE}#GAP·stream`, `${FILE}#GAP·batch`]);
+    // headings are still extracted — additive, not a replacement
+    expect(spans.map((s) => s.heading)).toContain("Facts");
+    expect(spans.map((s) => s.heading)).toContain("Notes");
+  });
+
+  it("never turns the header row or the separator row into a span", () => {
+    const spans = extractContentSpans(FILE, withTable);
+    expect(spans.some((s) => s.heading === "id")).toBe(false);
+    expect(spans.some((s) => s.heading === "---")).toBe(false);
+  });
+
+  it("dirties a row's own anchor when only that row is edited — an unrelated row and prose stay clean", () => {
+    const anchor = rowAnchorFor(withTable, "GAP·stream");
+    const rowEdited = withTable.replace("| GAP·stream | open |", "| GAP·stream | resolved |");
+    expect(locateContent(anchor, rowEdited).hashChanged).toBe(true);
+
+    const otherRowEdited = withTable.replace("| GAP·batch | closed |", "| GAP·batch | open |");
+    expect(locateContent(anchor, otherRowEdited).hashChanged).toBe(false);
+  });
+
+  it("resolves a table-row anchor through the same dispatcher a heading anchor uses", () => {
+    const anchor = rowAnchorFor(withTable, "GAP·batch");
+    const result = locateAnchor(anchor, withTable);
+    expect(result.found).toBe(true);
+    expect(result.hashChanged).toBe(false);
+  });
+});
+
 describe("locateContent", () => {
   it("does not dirty a span when unrelated content is inserted elsewhere in the file", () => {
     const anchor = anchorFor(before, "Elminster");

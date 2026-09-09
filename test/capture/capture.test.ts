@@ -206,6 +206,19 @@ describe("remember", () => {
     expect(existsSync(join(dir, filenameFor(result.node)))).toBe(true);
   });
 
+  it("resolves a heading anchor to a table row (additive to real headings)", () => {
+    const source = `# Facts\n\n| id | status |\n| --- | --- |\n| GAP·stream | open |\n`;
+    const result = remember(
+      dir,
+      [],
+      { body: "the stream gap is still open", kind: "lore-fact", artifactPath: "lore/facts.md", heading: "GAP·stream" },
+      { readArtifact: (p) => (p === "lore/facts.md" ? source : undefined), now: NOW },
+    );
+    expect(result.node.anchors).toEqual([
+      { locator: "lore/facts.md#GAP·stream", hash: expect.any(String), artifactPath: "lore/facts.md" },
+    ]);
+  });
+
   it("refuses an unknown symbol name, listing the available ones — nothing written", () => {
     const call = () =>
       remember(
