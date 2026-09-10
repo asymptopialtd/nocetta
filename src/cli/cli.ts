@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 import { resolveRoot } from "../facade/root.js";
 import { resolve } from "node:path";
-import { realpathSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import type { Nocetta, Worklist } from "../facade/open.js";
+import { buildLedger, classify, readRecallLog } from "../recall/index.js";
+import type { Ledger, LedgerEntry } from "../recall/index.js";
 import { filenameFor } from "../store/store.js";
+import { isCurrent } from "../store/index-file.js";
 import type { StoreIssue } from "../store/store.js";
 import type { MemoryNode } from "../store/types.js";
 
@@ -35,6 +38,7 @@ usage:
   nocetta check [--strict] [--root <dir>]    drift report + gate: dirty nodes, conflicts, duplicates, quarantined files
   nocetta worklist [--root <dir>]            the same report; reports, never gates (always exit 0)
   nocetta ls [--root <dir>] [--kind <kind>]  one line per node: id8, kind, authority, first 60 chars of body
+  nocetta ledger [--root <dir>]              value ledger from the local recall log: working / redundant / dormant / prunable
 
 --strict makes check exit 1 when anything needs attention (dirty, conflicts,
 duplicates, or issues); without it only an unreadable store fails — drift is
@@ -42,7 +46,7 @@ normal in a moving repo, and CI passes --strict. --root defaults to discovery:
 the nearest ancestor holding .nocetta/ or .git/, else the working directory.
 `;
 
-const COMMANDS = ["check", "worklist", "ls"] as const;
+const COMMANDS = ["check", "worklist", "ls", "ledger"] as const;
 type Command = (typeof COMMANDS)[number];
 
 function isCommand(value: string): value is Command {
@@ -110,6 +114,7 @@ export async function runCli(argv: string[]): Promise<CliResult> {
   try {
     if (args.command === "check") return checkCommand(root, args.strict);
     if (args.command === "worklist") return worklistCommand(root);
+    if (args.command === "ledger") return ledgerCommand(root);
     return lsCommand(root, args.kind);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -219,6 +224,50 @@ function render(report: Report): string {
   }
   lines.push(
     `${report.nodeCount} nodes · ${report.dirty.length} dirty · ${report.conflicts.length} conflicts · ${report.duplicates.length} dups · ${report.issues.length} issues`,
+  );
+  return `${lines.join("\n")}\n`;
+}
+
+/**
+ * The value ledger: the local recall log folded over the current store into
+ * the surfaced × complement 2×2. A report, never a gate (exit 0 always) — it
+ * exists to make the payout visible, the counterweight to the worklist's warts.
+ * Deliberately CLI-only and off the six-tool MCP surface: it is management, run
+ * on purpose by a human, not something the agent reaches for mid-task.
+ */
+function ledgerCommand(root: string): CliResult {
+  const nc = open(root);
+  const now = new Date().toISOString();
+  const current = nc.nodes().filter((node) => isCurrent(node, now));
+  const events = readRecallLog(root);
+  const readArtifact = (path: string): string | undefined => {
+    try {
+      return readFileSync(resolve(root, path), "utf8");
+    } catch {
+      return undefined;
+    }
+  };
+  const ledger = buildLedger(current, events, (node) => classify(node, readArtifact));
+  return { code: 0, out: renderLedger(ledger, events.length) };
+}
+
+function renderLedger(ledger: Ledger, eventCount: number): string {
+  const lines = [`value ledger  (${eventCount} recall event${eventCount === 1 ? "" : "s"})`, ""];
+  const section = (entries: LedgerEntry[], title: string): void => {
+    lines.push(`${title} (${entries.length}):`);
+    for (const entry of entries) {
+      const surfaced = entry.surfaced > 0 ? `${entry.surfaced}×` : "—";
+      const cited = entry.cited > 0 ? `cited ${entry.cited}×` : "";
+      lines.push(`  ${entry.id.slice(0, 8)}  ${surfaced.padEnd(4)} ${cited.padEnd(9)} ${entry.summary}`);
+    }
+    lines.push("");
+  };
+  section(ledger.working, "working — surfaced, beyond the code");
+  section(ledger.redundant, "redundant — surfaced, code already covers it");
+  section(ledger.dormant, "dormant — never surfaced, beyond the code (latent insurance, keep)");
+  section(ledger.prunable, "prunable — never surfaced and code already covers it");
+  lines.push(
+    `${ledger.working.length} working · ${ledger.redundant.length} redundant · ${ledger.dormant.length} dormant · ${ledger.prunable.length} prunable`,
   );
   return `${lines.join("\n")}\n`;
 }

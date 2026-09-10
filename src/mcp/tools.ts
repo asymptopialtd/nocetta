@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createNode } from "../capture/create.js";
 import type { Nocetta } from "../facade/open.js";
+import { appendRecall } from "../recall/index.js";
 import { shapeBelief, shapeHit, shapeLines, shapeWorklist } from "./shape.js";
 
 const KIND = z.enum(["claim", "value", "entity", "lore-fact"]);
@@ -51,6 +52,7 @@ export const TOOLS: readonly ToolDef[] = [
     "The recall surface: call it BEFORE editing code to pull up what memory knows about the files you are about to touch, or to answer a question from stored facts. " +
       "files_in_play are repo-relative paths; they match memories by their code/doc anchors. keyword is a free-text query over memory bodies. Give at least one of the two — a call with neither refuses. " +
       "Results are ranked and current-only (superseded and retired facts are never served), one JSON object per line: id, kind, authority, score, anchor locators, body. " +
+      "After you act on a result, your next call can pass used_ids — the ids from a prior result you actually used — so nocetta learns which memories earn their keep; it never changes what this search returns. " +
       'Example: {"files_in_play":["src/auth/login.ts"]} or {"keyword":"why is retry capped at 3"}.',
     {
       files_in_play: z
@@ -60,14 +62,31 @@ export const TOOLS: readonly ToolDef[] = [
       keyword: z.string().optional().describe("Free-text query over memory bodies"),
       scope: z.string().optional().describe("Restrict to one scope (a repo-relative directory, or \"global\")"),
       max_results: z.number().int().positive().optional().describe("Cap on results (default: the engine's budget)"),
+      used_ids: z
+        .array(z.string())
+        .optional()
+        .describe("Ids from a prior result you actually used; recorded to the local value ledger. Does not affect these results"),
     },
-    (nc, { files_in_play, keyword, scope, max_results }) => {
+    (nc, { files_in_play, keyword, scope, max_results, used_ids }) => {
+      const now = new Date().toISOString();
+      // Ack-on-next-search (rung 2): the citation signal rides the search the
+      // agent was going to make anyway — no seventh tool, no new moment to
+      // remember. A trailing ack-only call (no query) is honoured too, so the
+      // last recall of a task can still be acknowledged.
+      if (used_ids && used_ids.length > 0) appendRecall(nc.repoRoot, { t: now, kind: "ack", ids: used_ids });
       if ((files_in_play?.length ?? 0) === 0 && (keyword?.trim().length ?? 0) === 0) {
+        if (used_ids && used_ids.length > 0) {
+          return `noted ${used_ids.length} recalled ${used_ids.length === 1 ? "memory" : "memories"} as used`;
+        }
         throw new Error(
           "memory_search: give files_in_play (repo-relative paths you are about to edit) or keyword — with neither the only honest answer is an empty one, so the call refuses",
         );
       }
       const results = nc.search({ filesInPlay: files_in_play ?? [], keyword, scope, maxResults: max_results });
+      // Rung 1's byproduct: what was surfaced. Best-effort and empty-dropped in
+      // appendRecall, so a null result logs nothing and a write failure never
+      // touches recall.
+      appendRecall(nc.repoRoot, { t: now, kind: "recall", ids: results.map((r) => r.node.id) });
       if (results.length === 0) {
         // The teachable moment: memory was just asked and didn't know —
         // whatever the agent learns next is exactly what capture exists for.
