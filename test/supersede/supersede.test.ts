@@ -177,6 +177,29 @@ describe("findConflicts", () => {
     expect(conflicts).toHaveLength(1); // the heir's heresy; the dead node's is gone
     expect(conflicts[0]!.defaultNode.id).toBe("heir");
   });
+
+  it("does not flood a wide-ranging node against every focused belief it grazes", () => {
+    // Dogfood 2026-09-10 (the second scope-alone flood): one broad default
+    // value shared a discriminating word with many unrelated invariants and was
+    // flagged against all of them. Fan-out, not a word, tells a graze from a
+    // subject — a real conflict pairs one-to-one.
+    const roadmap = node({
+      id: "roadmap",
+      kind: "value",
+      scope: "global",
+      authority: "default",
+      body: "roadmap touching the stop hook, the ledger buckets, drift surfacing, and keyword recall",
+    });
+    // Four unrelated invariants the roadmap grazes on one word each.
+    const inv1 = node({ id: "i1", kind: "value", scope: "global", authority: "invariant", body: "the stop hook fires after every turn" });
+    const inv2 = node({ id: "i2", kind: "value", scope: "global", authority: "invariant", body: "the ledger folds four buckets" });
+    const inv3 = node({ id: "i3", kind: "value", scope: "global", authority: "invariant", body: "drift surfacing happens at edit time" });
+    const inv4 = node({ id: "i4", kind: "value", scope: "global", authority: "invariant", body: "keyword recall is noise-risky" });
+    // A genuine one-to-one conflict in the same scope must still fire.
+    const pnpm = node({ id: "pnpm", kind: "value", scope: "global", authority: "invariant", body: "always use pnpm for package installs" });
+    const npm = node({ id: "npm", kind: "value", scope: "global", authority: "default", body: "npm is fine for package installs in scripts" });
+    expect(findConflicts([roadmap, inv1, inv2, inv3, inv4, pnpm, npm]).map((c) => c.defaultNode.id)).toEqual(["npm"]);
+  });
 });
 
 describe("retconImpact", () => {
