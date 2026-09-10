@@ -3,9 +3,11 @@ id: 81ba0b41-4ba8-4315-a6df-119596f3fd2b
 summary: nocetta ships as a Claude Code plugin (repo root) bundling the MCP server + Stop hook; MCP config is nocetta.mcp.json, not .mcp.json, to dodge the project-config collision.
 scope: global
 anchors: []
-edges: []
+edges:
+  - type: superseded-by
+    target: 50a51f72-93c3-4b93-bd39-e615b84220fc
 validFrom: '2026-09-10T13:22:50.565Z'
-validTo: null
+validTo: '2026-09-10T13:36:22.868Z'
 txnTime: '2026-09-10T13:22:50.565Z'
 authority: invariant
 overrideReason: null

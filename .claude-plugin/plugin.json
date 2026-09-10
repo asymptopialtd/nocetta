@@ -5,6 +5,5 @@
   "version": "0.0.1",
   "author": { "name": "He Zhu" },
   "license": "UNLICENSED",
-  "mcpServers": "./nocetta.mcp.json",
-  "hooks": "./hooks/hooks.json"
+  "mcpServers": "./nocetta.mcp.json"
 }
