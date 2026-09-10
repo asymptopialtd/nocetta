@@ -5,8 +5,8 @@ import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import type { Nocetta, Worklist } from "../facade/open.js";
-import { buildLedger, classify, readRecallLog } from "../recall/index.js";
-import type { Ledger, LedgerEntry } from "../recall/index.js";
+import { buildLedger, classify, readRecallLog, runStopHook } from "../recall/index.js";
+import type { Ledger, LedgerEntry, StopHookInput } from "../recall/index.js";
 import { filenameFor } from "../store/store.js";
 import { isCurrent } from "../store/index-file.js";
 import type { StoreIssue } from "../store/store.js";
@@ -39,6 +39,7 @@ usage:
   nocetta worklist [--root <dir>]            the same report; reports, never gates (always exit 0)
   nocetta ls [--root <dir>] [--kind <kind>]  one line per node: id8, kind, authority, first 60 chars of body
   nocetta ledger [--root <dir>]              value ledger from the local recall log: working / redundant / dormant / prunable
+  nocetta hook stop [--root <dir>]           Claude Code Stop hook: credit memories whose file this turn edited (reads hook JSON on stdin)
 
 --strict makes check exit 1 when anything needs attention (dirty, conflicts,
 duplicates, or issues); without it only an unreadable store fails — drift is
@@ -46,7 +47,7 @@ normal in a moving repo, and CI passes --strict. --root defaults to discovery:
 the nearest ancestor holding .nocetta/ or .git/, else the working directory.
 `;
 
-const COMMANDS = ["check", "worklist", "ls", "ledger"] as const;
+const COMMANDS = ["check", "worklist", "ls", "ledger", "hook"] as const;
 type Command = (typeof COMMANDS)[number];
 
 function isCommand(value: string): value is Command {
@@ -55,6 +56,10 @@ function isCommand(value: string): value is Command {
 
 interface ParsedArgs {
   command: Command | null;
+  /** The second bare token, taken only after `hook` (its event name, e.g.
+   * "stop"). Every other command takes no operand, so a second token there is
+   * a parse problem. */
+  sub: string | null;
   strict: boolean;
   root: string | null;
   kind: string | null;
@@ -69,7 +74,7 @@ interface ParsedArgs {
  * command and any second one is a parse problem (no command takes operands).
  */
 function parseArgs(argv: string[]): ParsedArgs {
-  const parsed: ParsedArgs = { command: null, strict: false, root: null, kind: null, help: false, problem: null };
+  const parsed: ParsedArgs = { command: null, sub: null, strict: false, root: null, kind: null, help: false, problem: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     if (arg === "--help" || arg === "-h") {
@@ -89,6 +94,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     } else if (parsed.command === null) {
       if (!isCommand(arg)) return { ...parsed, problem: `unknown command: ${arg}` };
       parsed.command = arg;
+    } else if (parsed.command === "hook" && parsed.sub === null) {
+      parsed.sub = arg;
     } else {
       return { ...parsed, problem: `unexpected argument: ${arg}` };
     }
@@ -115,6 +122,7 @@ export async function runCli(argv: string[]): Promise<CliResult> {
     if (args.command === "check") return checkCommand(root, args.strict);
     if (args.command === "worklist") return worklistCommand(root);
     if (args.command === "ledger") return ledgerCommand(root);
+    if (args.command === "hook") return hookCommand(root, args.sub);
     return lsCommand(root, args.kind);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -270,6 +278,25 @@ function renderLedger(ledger: Ledger, eventCount: number): string {
     `${ledger.working.length} working · ${ledger.redundant.length} redundant · ${ledger.dormant.length} dormant · ${ledger.prunable.length} prunable`,
   );
   return `${lines.join("\n")}\n`;
+}
+
+/**
+ * The hook door: a Claude Code hook calls `nocetta hook <event>`, hands the
+ * event JSON on stdin, and reads nothing back (these hooks are side-effects on
+ * the recall log, never context the model sees — citation-only, so a hook that
+ * fires every turn adds no noise). Bad or absent stdin degrades to a no-op
+ * rather than an error: a telemetry hook must never fail the turn it rides.
+ */
+function hookCommand(root: string, sub: string | null): CliResult {
+  if (sub !== "stop") return { code: 1, out: `nocetta hook: unknown hook "${sub ?? ""}" — supported: stop\n` };
+  let input: StopHookInput = {};
+  try {
+    input = JSON.parse(readFileSync(0, "utf8")) as StopHookInput;
+  } catch {
+    // no piped stdin, or malformed payload: nothing to attribute, exit clean.
+  }
+  runStopHook(root, input);
+  return { code: 0, out: "" };
 }
 
 /** Wires runCli onto the process: argv in, report to stdout, gate to the

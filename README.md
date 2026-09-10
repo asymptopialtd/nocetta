@@ -148,6 +148,34 @@ git them. `.nocetta/INDEX.md` (beside `memory/`, not inside it) is a generated o
 per-current-node listing, rewritten on every write — never hand-edit it, it never survives
 the next mutation.
 
+`nocetta ledger` reports the value ledger from the local recall log: which memories are
+**working** (surfaced and beyond the code), **redundant** (surfaced but the code already
+says it), **dormant** (never surfaced but beyond the code — latent insurance, kept), and
+**prunable** (never surfaced and already in the code — the only safe-to-clear quadrant).
+The log lives at `.nocetta/recall-log.jsonl` and is per-machine — nocetta keeps it out of
+git via a `.nocetta/.gitignore` it maintains itself, so never commit or share it.
+
+### Hooks (optional)
+
+The recall log fills as an agent searches, and `used_ids` on `memory_search` lets an agent
+mark which hits it used. On Claude Code you can capture that last signal automatically
+instead: the `Stop` hook credits every memory whose anchored file the turn just edited —
+no agent effort, no context noise (it records, it never speaks back). Add to your
+`settings.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js hook stop" }] }
+    ]
+  }
+}
+```
+
+It reads the hook payload on stdin and writes only to the local recall log; `nocetta ledger`
+is where the credited memories show up.
+
 ### CI
 
 ```yaml

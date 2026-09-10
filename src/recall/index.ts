@@ -4,3 +4,5 @@ export { classify } from "./residual.js";
 export type { MemoryClass, ReadArtifact } from "./residual.js";
 export { buildLedger } from "./ledger.js";
 export type { Ledger, LedgerEntry } from "./ledger.js";
+export { runStopHook } from "./stop-hook.js";
+export type { StopHookInput, StopHookResult } from "./stop-hook.js";

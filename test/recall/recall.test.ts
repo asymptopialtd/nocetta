@@ -1,12 +1,14 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { extractSymbols } from "../../src/anchor/index.js";
 import type { Anchor } from "../../src/anchor/index.js";
+import { open } from "../../src/facade/index.js";
 import { appendRecall, readRecallLog, recallLogPath } from "../../src/recall/log.js";
 import { classify } from "../../src/recall/residual.js";
 import { buildLedger } from "../../src/recall/ledger.js";
+import { runStopHook } from "../../src/recall/stop-hook.js";
 import type { RecallEvent } from "../../src/recall/log.js";
 import type { MemoryClass } from "../../src/recall/residual.js";
 import type { MemoryNode } from "../../src/store/types.js";
@@ -134,5 +136,53 @@ describe("buildLedger", () => {
     expect(ledger.working[0]).toMatchObject({ surfaced: 2, cited: 1 });
     expect(ledger.redundant[0]).toMatchObject({ surfaced: 1, cited: 0 });
     expect(ledger.dormant[0]).toMatchObject({ surfaced: 0, cited: 0 });
+  });
+});
+
+describe("runStopHook", () => {
+  const FOO = "src/foo.ts";
+  let repoRoot: string;
+  let fooId: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), "nocetta-stop-hook-"));
+    mkdirSync(join(repoRoot, "src"), { recursive: true });
+    writeFileSync(join(repoRoot, FOO), "export function foo(): number {\n  return 1;\n}\n", "utf8");
+    const { node } = open(repoRoot).remember({
+      body: "foo returns one but the reason it exists is a July incident the code cannot show.",
+      kind: "claim",
+      artifactPath: FOO,
+      symbolName: "foo",
+    });
+    fooId = node.id;
+  });
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  const editCall = (path: string) => ({ tool_name: "Edit", tool_input: { file_path: join(repoRoot, path) } });
+
+  it("acks a surfaced memory whose anchored file was edited this turn", () => {
+    appendRecall(repoRoot, { t: "t", kind: "recall", ids: [fooId] });
+    const res = runStopHook(repoRoot, { cwd: repoRoot, turn_tool_calls: [editCall(FOO)] });
+    expect(res.acked).toEqual([fooId]);
+    const cited = readRecallLog(repoRoot).filter((e) => e.kind === "ack").flatMap((e) => e.ids);
+    expect(cited).toContain(fooId);
+  });
+
+  it("credits nothing when the edited file has no surfaced memory", () => {
+    appendRecall(repoRoot, { t: "t", kind: "recall", ids: [fooId] });
+    writeFileSync(join(repoRoot, "src", "other.ts"), "export const x = 1;\n", "utf8");
+    expect(runStopHook(repoRoot, { cwd: repoRoot, turn_tool_calls: [editCall("src/other.ts")] }).acked).toEqual([]);
+  });
+
+  it("credits nothing when the memory was never surfaced", () => {
+    // no recall event logged — editing the file alone is not evidence of use
+    expect(runStopHook(repoRoot, { cwd: repoRoot, turn_tool_calls: [editCall(FOO)] }).acked).toEqual([]);
+  });
+
+  it("no-ops on a turn that edited nothing", () => {
+    appendRecall(repoRoot, { t: "t", kind: "recall", ids: [fooId] });
+    expect(runStopHook(repoRoot, { cwd: repoRoot, turn_tool_calls: [] }).acked).toEqual([]);
   });
 });
