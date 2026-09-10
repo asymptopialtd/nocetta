@@ -38,9 +38,17 @@ from the files alone, with no database and no runtime.
 
 Nocetta is closed source for now (`private: true`, UNLICENSED): it ships as a tarball to
 trusted projects — `pnpm pack` in a checkout, then a `file:` install or a private registry
-(see BACKLOG.md for the posture). Two ways in:
+(see BACKLOG.md for the posture). Three ways in:
 
-**For an agent — the MCP server.** Point an MCP client at the dist; that's the whole
+**On Claude Code — the plugin (easiest).** The repo is also a Claude Code plugin: its
+`.claude-plugin/plugin.json` bundles the MCP server (`nocetta.mcp.json`) and the citation
+Stop hook (`hooks/hooks.json`), so one install wires both — no `settings.json` editing.
+Point Claude Code at a built checkout with `claude --plugin-dir /path/to/nocetta`, or serve
+it from a private marketplace. The plugin is a thin wrapper: everything it points at is the
+same portable MCP server and CLI below, so nothing here is Claude-Code-only except the
+auto-wiring itself.
+
+**For an agent on any harness — the MCP server.** Point an MCP client at the dist; that's the whole
 config. The repo root is *discovered*, not declared — the server walks up from its
 working directory to the nearest ancestor holding `.nocetta/` or `.git/`, the way git
 finds a repo — so one registration serves every project, and memories always land in
@@ -160,8 +168,10 @@ git via a `.nocetta/.gitignore` it maintains itself, so never commit or share it
 The recall log fills as an agent searches, and `used_ids` on `memory_search` lets an agent
 mark which hits it used. On Claude Code you can capture that last signal automatically
 instead: the `Stop` hook credits every memory whose anchored file the turn just edited —
-no agent effort, no context noise (it records, it never speaks back). Add to your
-`settings.json`:
+no agent effort, no context noise (it records, it never speaks back).
+
+**The plugin install already wires this** (`hooks/hooks.json`) — nothing to do. Only if you
+run the server standalone, without the plugin, add the hook to your `settings.json` by hand:
 
 ```json
 {
