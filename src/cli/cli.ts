@@ -5,8 +5,8 @@ import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import type { Nocetta, Worklist } from "../facade/open.js";
-import { buildLedger, classify, readRecallLog, runStopHook, runUserPromptSubmitHook } from "../recall/index.js";
-import type { Ledger, LedgerEntry, StopHookInput, UserPromptSubmitHookInput } from "../recall/index.js";
+import { buildLedger, classify, readRecallLog, runStopHook, runUserPromptSubmitHook, runPreCompactHook } from "../recall/index.js";
+import type { Ledger, LedgerEntry, StopHookInput, UserPromptSubmitHookInput, PreCompactHookInput } from "../recall/index.js";
 import { filenameFor } from "../store/store.js";
 import { isCurrent } from "../store/index-file.js";
 import type { StoreIssue } from "../store/store.js";
@@ -42,6 +42,8 @@ usage:
   nocetta hook stop [--root <dir>]           Claude Code Stop hook: credit memories whose file this turn edited (reads hook JSON on stdin)
   nocetta hook user-prompt-submit [--root]   Claude Code UserPromptSubmit hook: push at most one strong, current memory as dismissible
                                               context (reads hook JSON on stdin; NOCETTA_PUSH_FLOOR / NOCETTA_PUSH_OFF tune it — see README)
+  nocetta hook pre-compact [--root]          Claude Code PreCompact hook: mark the compaction so push-recall's per-session dedup resets
+                                              (a memory ignored before a compaction may resurface after — reads hook JSON on stdin)
 
 --strict makes check exit 1 when anything needs attention (dirty, conflicts,
 duplicates, or issues); without it only an unreadable store fails — drift is
@@ -313,7 +315,19 @@ function hookCommand(root: string, sub: string | null): CliResult {
     const { output } = runUserPromptSubmitHook(root, input);
     return { code: 0, out: output ? JSON.stringify(output) : "" };
   }
-  return { code: 1, out: `nocetta hook: unknown hook "${sub ?? ""}" — supported: stop, user-prompt-submit\n` };
+  if (sub === "pre-compact") {
+    let input: PreCompactHookInput = {};
+    try {
+      input = JSON.parse(readFileSync(0, "utf8")) as PreCompactHookInput;
+    } catch {
+      // no piped stdin, or malformed payload: mark the compaction session-less.
+    }
+    // Side-effect only (PreCompact can't inject): drop a marker that resets
+    // this session's push-recall dedup window. Empty stdout, same as Stop.
+    runPreCompactHook(root, input);
+    return { code: 0, out: "" };
+  }
+  return { code: 1, out: `nocetta hook: unknown hook "${sub ?? ""}" — supported: stop, user-prompt-submit, pre-compact\n` };
 }
 
 /** Wires runCli onto the process: argv in, report to stdout, gate to the

@@ -14,7 +14,7 @@ import { join } from "node:path";
 const NOCETTA_DIRNAME = ".nocetta";
 const LOG_BASENAME = "recall-log.jsonl";
 
-export type RecallEventKind = "recall" | "ack" | "inject";
+export type RecallEventKind = "recall" | "ack" | "inject" | "compaction";
 
 export interface RecallEvent {
   /** ISO-8601 capture time. */
@@ -22,16 +22,23 @@ export interface RecallEvent {
   kind: RecallEventKind;
   /** Node ids surfaced (recall), flagged as used by the next search (ack),
    * or pushed as context by the UserPromptSubmit hook (inject — always a
-   * single id, the array shape is kept for symmetry with the other kinds). */
+   * single id, the array shape is kept for symmetry with the other kinds).
+   * Empty on `compaction`: that kind is a session marker, not an id event. */
   ids: string[];
-  /** `inject` only: the Claude Code session this fired in — the key the
-   * push-recall hook's per-session dedup (cooldown + rising bar) folds the
-   * log over. Absent on `recall`/`ack`, and on any line written before this
-   * field existed — readRecallLog must keep parsing those. */
+  /** `inject`/`compaction` only: the Claude Code session this fired in — the
+   * key the push-recall hook's per-session dedup (cooldown + rising bar) folds
+   * the log over, and the scope a `compaction` marker resets. Absent on
+   * `recall`/`ack`, and on any line written before this field existed —
+   * readRecallLog must keep parsing those. */
   session?: string;
   /** `inject` only: the score the pick cleared the floor with — the rising
    * bar compares a later candidate's score against this. */
   score?: number;
+  /** `inject` only: whether the pick came from an anchor match (a file the
+   * prompt named) rather than a keyword hit. Dedup treats the two sources
+   * differently — an anchor overrides a prior keyword suppression, so which
+   * source injected a memory has to survive in the log. */
+  source?: "anchor" | "keyword";
 }
 
 function nocettaDir(repoRoot: string): string {
@@ -60,10 +67,11 @@ function ensureIgnored(dir: string): void {
  * Append one event. Best-effort by contract: recall telemetry must never break
  * or slow the recall path, so every failure (read-only fs, a mkdir race) is
  * swallowed. An empty-id event is dropped — a search that surfaced nothing is
- * not a data point the ledger needs.
+ * not a data point the ledger needs — except a `compaction` marker, which
+ * carries no ids by design and is exactly the data point dedup-reset needs.
  */
 export function appendRecall(repoRoot: string, event: RecallEvent): void {
-  if (event.ids.length === 0) return;
+  if (event.ids.length === 0 && event.kind !== "compaction") return;
   try {
     const dir = nocettaDir(repoRoot);
     mkdirSync(dir, { recursive: true });
@@ -90,9 +98,9 @@ export function readRecallLog(repoRoot: string): RecallEvent[] {
     if (line.trim().length === 0) continue;
     try {
       const parsed = JSON.parse(line) as RecallEvent;
-      if ((parsed.kind === "recall" || parsed.kind === "ack" || parsed.kind === "inject") && Array.isArray(parsed.ids)) {
-        events.push(parsed);
-      }
+      const known =
+        parsed.kind === "recall" || parsed.kind === "ack" || parsed.kind === "inject" || parsed.kind === "compaction";
+      if (known && Array.isArray(parsed.ids)) events.push(parsed);
     } catch {
       // one corrupt line never sinks the rest of the log.
     }

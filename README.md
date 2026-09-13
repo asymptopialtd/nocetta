@@ -215,13 +215,27 @@ the resting state. Three guardrails keep it that way:
   the session — it's already served its purpose. A memory that was injected and ignored can
   still re-fire later in the same session, but only once a new match's score clears the
   prior one by a real margin — a materially stronger hit, not the same weak signal firing
-  again. An anchor-gated match (the prompt names a file a memory is anchored to) always
-  outranks a keyword-only one and bypasses this dedup.
+  again.
+
+Two things shift the balance toward surfacing:
+
+- **Anchor-gated matches.** When the prompt names a file a memory is anchored to, that's
+  direct evidence rather than a keyword coincidence, so the match bypasses the floor. It
+  still surfaces at most once per session, and a *prior anchor* suppresses a repeat — but a
+  prior *keyword* injection (which may have been a false positive the agent ignored) never
+  mutes a genuine anchor match, so the memory can still surface when its file actually comes
+  up. Paths are read straight out of the prompt text (repo-relative or absolute), so no edit
+  is needed for this to fire.
+- **Compaction resets the window.** When a session's context is compacted, the "the agent
+  already saw this" assumption behind the dedup expires — the injection that suppressed a
+  repeat may have been summarized away. A `PreCompact` hook records the compaction, and
+  push-recall stops counting injections from before it, so a still-relevant memory can
+  resurface afterward.
 
 `NOCETTA_PUSH_OFF=1` disables the hook entirely (fail-open no-op) if you'd rather run
-without push-recall while keeping the citation-only Stop hook. The plugin install wires
-both hooks; standalone, add `UserPromptSubmit` the same way as `Stop` above, pointing at
-`hook user-prompt-submit`.
+without push-recall while keeping the citation-only Stop hook. The plugin install wires all
+three hooks; standalone, add `UserPromptSubmit` and `PreCompact` the same way as `Stop`
+above, pointing at `hook user-prompt-submit` and `hook pre-compact`.
 
 ### CI
 

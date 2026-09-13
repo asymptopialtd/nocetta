@@ -50,19 +50,19 @@ describe("selectPushRecall", () => {
   });
 
   it("a node injected and later acked is suppressed permanently — even at a much higher score", () => {
-    const prior: PriorInjection[] = [{ id: "used", score: FLOOR + 1, acked: true }];
+    const prior: PriorInjection[] = [{ id: "used", score: FLOOR + 1, acked: true, viaAnchor: false }];
     const pick = selectPushRecall([candidate("used", FLOOR + 20)], prior, { floor: FLOOR });
     expect(pick).toBeNull();
   });
 
   it("a node injected and ignored (no ack) stays suppressed at the same score", () => {
-    const prior: PriorInjection[] = [{ id: "ignored", score: FLOOR + 5, acked: false }];
+    const prior: PriorInjection[] = [{ id: "ignored", score: FLOOR + 5, acked: false, viaAnchor: false }];
     const pick = selectPushRecall([candidate("ignored", FLOOR + 5)], prior, { floor: FLOOR });
     expect(pick).toBeNull();
   });
 
   it("an ignored node re-fires once its score clears the rising bar", () => {
-    const prior: PriorInjection[] = [{ id: "ignored", score: FLOOR + 5, acked: false }];
+    const prior: PriorInjection[] = [{ id: "ignored", score: FLOOR + 5, acked: false, viaAnchor: false }];
     // exactly at the margin still fails — "materially exceeds" is a strict >
     const atMargin = selectPushRecall([candidate("ignored", FLOOR + 5 + RISING_BAR_MARGIN)], prior, { floor: FLOOR });
     expect(atMargin).toBeNull();
@@ -72,7 +72,7 @@ describe("selectPushRecall", () => {
   });
 
   it("a node never injected this session has no suppression to clear", () => {
-    const prior: PriorInjection[] = [{ id: "other", score: 999, acked: false }];
+    const prior: PriorInjection[] = [{ id: "other", score: 999, acked: false, viaAnchor: false }];
     const pick = selectPushRecall([candidate("fresh", FLOOR + 1)], prior, { floor: FLOOR });
     expect(pick!.node.id).toBe("fresh");
   });
@@ -81,13 +81,42 @@ describe("selectPushRecall", () => {
     const pick = selectPushRecall([candidate("anchored", 0.1, { anchored: true })], [], { floor: FLOOR });
     expect(pick).not.toBeNull();
     expect(pick!.node.id).toBe("anchored");
+    expect(pick!.viaAnchor).toBe(true);
   });
 
-  it("an anchor-gated candidate bypasses keyword suppression (used or ignored, same session)", () => {
-    const prior: PriorInjection[] = [{ id: "anchored", score: 50, acked: true }];
+  it("an anchor match overrides a prior keyword injection that was ignored", () => {
+    // the false-positive-then-anchor case: a weak keyword hit surfaced M and
+    // was ignored; later the prompt names M's anchored file. The anchor is
+    // real evidence, so it re-surfaces despite the earlier keyword suppression.
+    const prior: PriorInjection[] = [{ id: "anchored", score: FLOOR + 5, acked: false, viaAnchor: false }];
     const pick = selectPushRecall([candidate("anchored", 0.1, { anchored: true })], prior, { floor: FLOOR });
-    expect(pick).not.toBeNull();
     expect(pick!.node.id).toBe("anchored");
+    expect(pick!.viaAnchor).toBe(true);
+  });
+
+  it("an anchor match is suppressed once it has already surfaced via anchor this session", () => {
+    // an anchor surfaces a memory precisely once — repeating it every turn the
+    // file is mentioned would nag.
+    const prior: PriorInjection[] = [{ id: "anchored", score: 20, acked: false, viaAnchor: true }];
+    const pick = selectPushRecall([candidate("anchored", 0.1, { anchored: true })], prior, { floor: FLOOR });
+    expect(pick).toBeNull();
+  });
+
+  it("an anchor match is suppressed after the memory was used, whatever the source", () => {
+    const prior: PriorInjection[] = [{ id: "anchored", score: 50, acked: true, viaAnchor: false }];
+    const pick = selectPushRecall([candidate("anchored", 0.1, { anchored: true })], prior, { floor: FLOOR });
+    expect(pick).toBeNull();
+  });
+
+  it("a suppressed anchor does not block a fresh keyword hit on another node", () => {
+    const prior: PriorInjection[] = [{ id: "anchored", score: 20, acked: false, viaAnchor: true }];
+    const pick = selectPushRecall(
+      [candidate("anchored", 0.1, { anchored: true }), candidate("fresh-keyword", FLOOR + 3)],
+      prior,
+      { floor: FLOOR },
+    );
+    expect(pick!.node.id).toBe("fresh-keyword");
+    expect(pick!.viaAnchor).toBe(false);
   });
 
   it("an anchor-gated candidate is preferred over a higher-scoring keyword-only one", () => {

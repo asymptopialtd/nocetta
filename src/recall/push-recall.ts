@@ -21,9 +21,14 @@ export interface PriorInjection {
   /** The score it was injected at — the rising bar compares against this. */
   score: number;
   /** True when a later `ack` event in the log credited this id: it was
-   * used, so it is suppressed permanently (for this session — see the
-   * compaction-reset seam in user-prompt-submit-hook.ts). */
+   * used, so it is suppressed permanently (for this session, until a
+   * compaction marker resets the window — see user-prompt-submit-hook.ts). */
   acked: boolean;
+  /** True when the prior injection came from an anchor match, not a keyword
+   * hit. An anchor surfaced the memory precisely once already, so a repeat
+   * anchor is suppressed — but a prior keyword injection (possibly a false
+   * positive the agent ignored) never mutes a later anchor match. */
+  viaAnchor: boolean;
 }
 
 export interface PushRecallOptions {
@@ -38,6 +43,10 @@ export interface PushRecallOptions {
 export interface PushRecallPick {
   node: MemoryNode;
   score: number;
+  /** How this pick was found — recorded on the inject event so a later turn's
+   * dedup knows whether an anchor already surfaced it (suppress) or only a
+   * keyword did (an anchor may still override). */
+  viaAnchor: boolean;
 }
 
 /**
@@ -66,28 +75,40 @@ export function selectPushRecall(
   const margin = opts.risingBarMargin ?? RISING_BAR_MARGIN;
   const priorById = new Map(priorInjections.map((p) => [p.id, p]));
 
-  // Rule 3: an anchor hit (a real anchor match, not a shared keyword) always
-  // outranks keyword-only candidates and bypasses both the floor and the
-  // session dedup below — it's direct evidence, not BM25's "score > 0 on one
-  // common word" the floor exists to guard against.
-  const anchored = candidates.filter((c) => c.matchedFiles.size > 0);
-  if (anchored.length > 0) return top(anchored);
+  // Rule 3: an anchor hit (a real anchor match on a file the prompt named, not
+  // a shared keyword) bypasses the floor — it's direct evidence, not BM25's
+  // "score > 0 on one common word" the floor guards against. It still respects
+  // dedup, but only against a prior ANCHOR injection: an anchor surfaces a
+  // memory precisely once per session, while a prior keyword injection (maybe
+  // a false positive the agent ignored) never mutes a genuine anchor match.
+  const anchorEligible = candidates.filter((c) => {
+    if (c.matchedFiles.size === 0) return false;
+    const prior = priorById.get(c.node.id);
+    if (!prior) return true;
+    if (prior.acked) return false; // used already — consumed
+    return !prior.viaAnchor; // a prior keyword hit doesn't block the anchor; a prior anchor does
+  });
+  if (anchorEligible.length > 0) return top(anchorEligible, true);
 
+  // Keyword-only path: the floor plus the rising-bar dedup. (Anchored
+  // candidates are excluded here — if the block above found none eligible,
+  // a suppressed anchor still shouldn't block a keyword hit on another node.)
   const eligible = candidates.filter((c) => {
+    if (c.matchedFiles.size > 0) return false; // handled by the anchor path
     if (c.score <= opts.floor) return false; // rule 1: default to silence
     const prior = priorById.get(c.node.id);
     if (!prior) return true; // never shown this session — free to fire
     if (prior.acked) return false; // used already — consumed, not repeated
     return c.score > prior.score + margin; // ignored before — needs the rising bar
   });
-  return eligible.length > 0 ? top(eligible) : null;
+  return eligible.length > 0 ? top(eligible, false) : null;
 }
 
 /** Highest-scoring candidate. A plain reduce rather than trusting the
  * caller's array to already be sorted (rankedSearch's output is, but this
  * function is unit-tested with hand-built arrays that needn't be). */
-function top(candidates: readonly RankedCandidate[]): PushRecallPick {
+function top(candidates: readonly RankedCandidate[], viaAnchor: boolean): PushRecallPick {
   let best = candidates[0]!;
   for (const c of candidates) if (c.score > best.score) best = c;
-  return { node: best.node, score: best.score };
+  return { node: best.node, score: best.score, viaAnchor };
 }

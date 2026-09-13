@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runCli, USAGE } from "../../src/cli/index.js";
+import { readRecallLog } from "../../src/recall/index.js";
 import { MEMORY_DIR, open } from "../../src/facade/index.js";
 import { filenameFor, writeNode } from "../../src/store/index.js";
 import type { MemoryNode } from "../../src/store/index.js";
@@ -283,6 +284,40 @@ describe("nocetta hook user-prompt-submit (push-recall)", () => {
 
     expect(code).toBe(0);
     expect(out).toBe("");
+  });
+
+  function runPreCompact(): number {
+    try {
+      execFileSync(process.execPath, [distCli, "hook", "pre-compact", "--root", repoRoot], {
+        input: JSON.stringify({ session_id: "s1" }),
+        encoding: "utf8",
+      });
+      return 0;
+    } catch (err) {
+      return (err as { status?: number }).status ?? 1;
+    }
+  }
+
+  it("hook pre-compact writes a compaction marker and stays silent", () => {
+    if (!existsSync(distCli)) return;
+    expect(runPreCompact()).toBe(0);
+    const compactions = readRecallLog(repoRoot).filter((e) => e.kind === "compaction");
+    expect(compactions).toHaveLength(1);
+    expect(compactions[0]!.session).toBe("s1");
+  });
+
+  it("a compaction re-opens an ignored memory for re-injection", () => {
+    if (!existsSync(distCli)) return;
+    open(repoRoot).remember({ body: "The elephant zebra giraffe protocol governs how retries back off.", kind: "value" });
+    const prompt = "tell me about the elephant zebra giraffe protocol";
+
+    // First prompt fires; the immediate repeat is suppressed (ignored, same score).
+    expect(runHook(prompt, { NOCETTA_PUSH_FLOOR: "0" }).out).not.toBe("");
+    expect(runHook(prompt, { NOCETTA_PUSH_FLOOR: "0" }).out).toBe("");
+
+    // After a compaction, the "already saw it" assumption expires — it re-fires.
+    expect(runPreCompact()).toBe(0);
+    expect(runHook(prompt, { NOCETTA_PUSH_FLOOR: "0" }).out).not.toBe("");
   });
 });
 
