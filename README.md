@@ -186,6 +186,43 @@ run the server standalone, without the plugin, add the hook to your `settings.js
 It reads the hook payload on stdin and writes only to the local recall log; `nocetta ledger`
 is where the credited memories show up.
 
+**Push-recall (`UserPromptSubmit`).** The Stop hook above only ever records — it never
+speaks back. This one does: on every user prompt it runs a keyword search over the prompt
+text and, only when it finds a genuinely strong, non-repetitive match, injects that one
+memory as dismissible background:
+
+```
+nocetta: a current belief that may relate to this — "<summary>" (id <id>); ignore if
+off-topic, or memory_search to pull the detail.
+```
+
+It is never phrased as an instruction, and most turns it says nothing at all — silence is
+the resting state. Three guardrails keep it that way:
+
+- **An absolute relevance floor** (`NOCETTA_PUSH_FLOOR`, default `9`). BM25 scores aren't
+  normalized, so "top-ranked" alone isn't evidence of relevance — a single shared common
+  word always scores above zero. The default was read off sampling this project's own
+  store: on-topic prompts scored top-hits of 9.6-13.3, while generic dev chatter (e.g. "can
+  you fix the typo in this comment", which happens to share "fix" with an unrelated
+  decision) still reached 7.5. `9` sits above every sampled false positive and below every
+  sampled true positive. Raise it if your project's memories are still surfacing on
+  tangential prompts; lower it (never below what your own sampling shows is safe) if
+  genuinely relevant memories are being missed.
+- **A cap of one.** At most one memory injects per turn, and only the single strongest
+  candidate.
+- **Session-scoped dedup with a rising bar, not a permanent ban.** A memory that was
+  injected and later used (cited via the Stop hook, or acked) is suppressed for the rest of
+  the session — it's already served its purpose. A memory that was injected and ignored can
+  still re-fire later in the same session, but only once a new match's score clears the
+  prior one by a real margin — a materially stronger hit, not the same weak signal firing
+  again. An anchor-gated match (the prompt names a file a memory is anchored to) always
+  outranks a keyword-only one and bypasses this dedup.
+
+`NOCETTA_PUSH_OFF=1` disables the hook entirely (fail-open no-op) if you'd rather run
+without push-recall while keeping the citation-only Stop hook. The plugin install wires
+both hooks; standalone, add `UserPromptSubmit` the same way as `Stop` above, pointing at
+`hook user-prompt-submit`.
+
 ### CI
 
 ```yaml

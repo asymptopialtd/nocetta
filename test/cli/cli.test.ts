@@ -199,6 +199,93 @@ describe("nocetta CLI (Seam 8)", () => {
   });
 });
 
+describe("nocetta hook user-prompt-submit (push-recall)", () => {
+  // Spawned rather than driven through runCli in-process: hookCommand reads
+  // stdin via readFileSync(0), so a real child process with piped input is
+  // what actually exercises that path (same reasoning as the symlink test
+  // below). dist must be built; skip when it isn't.
+  const distCli = fileURLToPath(new URL("../../dist/cli/cli.js", import.meta.url));
+
+  function runHook(prompt: string | null, envOverrides: Record<string, string> = {}): { code: number; out: string } {
+    const input = prompt === null ? "{ not json" : JSON.stringify({ prompt, session_id: "s1" });
+    try {
+      const out = execFileSync(process.execPath, [distCli, "hook", "user-prompt-submit", "--root", repoRoot], {
+        input,
+        encoding: "utf8",
+        env: { ...process.env, ...envOverrides },
+      });
+      return { code: 0, out };
+    } catch (err) {
+      const e = err as { status?: number; stdout?: string };
+      return { code: e.status ?? 1, out: e.stdout ?? "" };
+    }
+  }
+
+  it("emits a valid hookSpecificOutput JSON on a strong, floor-clearing hit", () => {
+    if (!existsSync(distCli)) return;
+    const { node: pushed } = open(repoRoot).remember({
+      body: "The elephant zebra giraffe protocol governs how retries back off.",
+      kind: "value",
+    });
+
+    const { code, out } = runHook("tell me about the elephant zebra giraffe protocol", { NOCETTA_PUSH_FLOOR: "0" });
+
+    expect(code).toBe(0);
+    const parsed = JSON.parse(out);
+    expect(parsed.hookSpecificOutput.hookEventName).toBe("UserPromptSubmit");
+    expect(parsed.hookSpecificOutput.additionalContext).toContain("nocetta:");
+    expect(parsed.hookSpecificOutput.additionalContext).toContain(pushed.id.slice(0, 8));
+  });
+
+  it("stays silent (empty stdout) on a prompt sharing no vocabulary with any memory", () => {
+    if (!existsSync(distCli)) return;
+    open(repoRoot).remember({ body: "The elephant zebra giraffe protocol governs retries.", kind: "value" });
+
+    const { code, out } = runHook("completely unrelated words with zero overlap whatsoever");
+
+    expect(code).toBe(0);
+    expect(out).toBe("");
+  });
+
+  it("degrades to a silent no-op on malformed stdin", () => {
+    if (!existsSync(distCli)) return;
+    const { code, out } = runHook(null);
+    expect(code).toBe(0);
+    expect(out).toBe("");
+  });
+
+  it("NOCETTA_PUSH_OFF silences an otherwise-strong hit", () => {
+    if (!existsSync(distCli)) return;
+    open(repoRoot).remember({ body: "The elephant zebra giraffe protocol governs how retries back off.", kind: "value" });
+
+    const { code, out } = runHook("tell me about the elephant zebra giraffe protocol", {
+      NOCETTA_PUSH_FLOOR: "0",
+      NOCETTA_PUSH_OFF: "1",
+    });
+
+    expect(code).toBe(0);
+    expect(out).toBe("");
+  });
+
+  it("a dirty node never injects even with a strong keyword match — current-only is inherited from filterLive", () => {
+    if (!existsSync(distCli)) return;
+    open(repoRoot).remember({
+      body: "The elephant zebra giraffe protocol governs how retries back off.",
+      kind: "claim",
+      artifactPath: FOO_PATH,
+      symbolName: "foo",
+    });
+    // Edit the anchored source without updating the node — the anchor hash
+    // no longer matches, so filterLive (upstream of rankedSearch) drops it.
+    writeFileSync(join(repoRoot, FOO_PATH), FOO_EDITED, "utf8");
+
+    const { code, out } = runHook("tell me about the elephant zebra giraffe protocol", { NOCETTA_PUSH_FLOOR: "0" });
+
+    expect(code).toBe(0);
+    expect(out).toBe("");
+  });
+});
+
 describe("bin entrypoint (symlink regression)", () => {
   it("runs when invoked through a package-manager bin symlink — never a silent exit 0", async () => {
     // pnpm installs node_modules/<pkg> as a symlink: argv[1] keeps the link

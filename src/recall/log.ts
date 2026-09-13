@@ -14,14 +14,24 @@ import { join } from "node:path";
 const NOCETTA_DIRNAME = ".nocetta";
 const LOG_BASENAME = "recall-log.jsonl";
 
-export type RecallEventKind = "recall" | "ack";
+export type RecallEventKind = "recall" | "ack" | "inject";
 
 export interface RecallEvent {
   /** ISO-8601 capture time. */
   t: string;
   kind: RecallEventKind;
-  /** Node ids surfaced (recall) or flagged as used by the next search (ack). */
+  /** Node ids surfaced (recall), flagged as used by the next search (ack),
+   * or pushed as context by the UserPromptSubmit hook (inject — always a
+   * single id, the array shape is kept for symmetry with the other kinds). */
   ids: string[];
+  /** `inject` only: the Claude Code session this fired in — the key the
+   * push-recall hook's per-session dedup (cooldown + rising bar) folds the
+   * log over. Absent on `recall`/`ack`, and on any line written before this
+   * field existed — readRecallLog must keep parsing those. */
+  session?: string;
+  /** `inject` only: the score the pick cleared the floor with — the rising
+   * bar compares a later candidate's score against this. */
+  score?: number;
 }
 
 function nocettaDir(repoRoot: string): string {
@@ -80,7 +90,9 @@ export function readRecallLog(repoRoot: string): RecallEvent[] {
     if (line.trim().length === 0) continue;
     try {
       const parsed = JSON.parse(line) as RecallEvent;
-      if ((parsed.kind === "recall" || parsed.kind === "ack") && Array.isArray(parsed.ids)) events.push(parsed);
+      if ((parsed.kind === "recall" || parsed.kind === "ack" || parsed.kind === "inject") && Array.isArray(parsed.ids)) {
+        events.push(parsed);
+      }
     } catch {
       // one corrupt line never sinks the rest of the log.
     }

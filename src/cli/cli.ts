@@ -5,8 +5,8 @@ import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import type { Nocetta, Worklist } from "../facade/open.js";
-import { buildLedger, classify, readRecallLog, runStopHook } from "../recall/index.js";
-import type { Ledger, LedgerEntry, StopHookInput } from "../recall/index.js";
+import { buildLedger, classify, readRecallLog, runStopHook, runUserPromptSubmitHook } from "../recall/index.js";
+import type { Ledger, LedgerEntry, StopHookInput, UserPromptSubmitHookInput } from "../recall/index.js";
 import { filenameFor } from "../store/store.js";
 import { isCurrent } from "../store/index-file.js";
 import type { StoreIssue } from "../store/store.js";
@@ -40,6 +40,8 @@ usage:
   nocetta ls [--root <dir>] [--kind <kind>]  one line per node: id8, kind, authority, first 60 chars of body
   nocetta ledger [--root <dir>]              value ledger from the local recall log: working / redundant / dormant / prunable
   nocetta hook stop [--root <dir>]           Claude Code Stop hook: credit memories whose file this turn edited (reads hook JSON on stdin)
+  nocetta hook user-prompt-submit [--root]   Claude Code UserPromptSubmit hook: push at most one strong, current memory as dismissible
+                                              context (reads hook JSON on stdin; NOCETTA_PUSH_FLOOR / NOCETTA_PUSH_OFF tune it — see README)
 
 --strict makes check exit 1 when anything needs attention (dirty, conflicts,
 duplicates, or issues); without it only an unreadable store fails — drift is
@@ -288,15 +290,30 @@ function renderLedger(ledger: Ledger, eventCount: number): string {
  * rather than an error: a telemetry hook must never fail the turn it rides.
  */
 function hookCommand(root: string, sub: string | null): CliResult {
-  if (sub !== "stop") return { code: 1, out: `nocetta hook: unknown hook "${sub ?? ""}" — supported: stop\n` };
-  let input: StopHookInput = {};
-  try {
-    input = JSON.parse(readFileSync(0, "utf8")) as StopHookInput;
-  } catch {
-    // no piped stdin, or malformed payload: nothing to attribute, exit clean.
+  if (sub === "stop") {
+    let input: StopHookInput = {};
+    try {
+      input = JSON.parse(readFileSync(0, "utf8")) as StopHookInput;
+    } catch {
+      // no piped stdin, or malformed payload: nothing to attribute, exit clean.
+    }
+    runStopHook(root, input);
+    return { code: 0, out: "" };
   }
-  runStopHook(root, input);
-  return { code: 0, out: "" };
+  if (sub === "user-prompt-submit") {
+    let input: UserPromptSubmitHookInput = {};
+    try {
+      input = JSON.parse(readFileSync(0, "utf8")) as UserPromptSubmitHookInput;
+    } catch {
+      // no piped stdin, or malformed payload: nothing to push, exit clean.
+    }
+    // Unlike the Stop hook, this one has a JSON payload to print — only when
+    // it actually injects (rule: default to silence). stdout stays empty on
+    // every other turn, same contract as Stop.
+    const { output } = runUserPromptSubmitHook(root, input);
+    return { code: 0, out: output ? JSON.stringify(output) : "" };
+  }
+  return { code: 1, out: `nocetta hook: unknown hook "${sub ?? ""}" — supported: stop, user-prompt-submit\n` };
 }
 
 /** Wires runCli onto the process: argv in, report to stdout, gate to the

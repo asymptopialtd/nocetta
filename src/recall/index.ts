@@ -6,3 +6,7 @@ export { buildLedger } from "./ledger.js";
 export type { Ledger, LedgerEntry } from "./ledger.js";
 export { runStopHook } from "./stop-hook.js";
 export type { StopHookInput, StopHookResult } from "./stop-hook.js";
+export { runUserPromptSubmitHook } from "./user-prompt-submit-hook.js";
+export type { UserPromptSubmitHookInput, UserPromptSubmitHookOutput, UserPromptSubmitHookResult } from "./user-prompt-submit-hook.js";
+export { selectPushRecall, RISING_BAR_MARGIN } from "./push-recall.js";
+export type { PriorInjection, PushRecallOptions, PushRecallPick } from "./push-recall.js";
