@@ -29,6 +29,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/cli/cli.js\" hook pre-compact"
+          }
+        ]
+      }
     ]
   }
 }

@@ -7,7 +7,7 @@
       "name": "nocetta",
       "source": "./",
       "description": "Anchored, self-staling memory: capture decisions, recall them by the files you touch, and see which earn their keep.",
-      "version": "0.0.1"
+      "version": "0.0.2"
     }
   ]
 }

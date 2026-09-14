@@ -2,7 +2,7 @@
   "name": "nocetta",
   "displayName": "Nocetta",
   "description": "Anchored, self-staling memory for coding agents: capture decisions, recall them by the files you touch, and see which earn their keep.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": { "name": "He Zhu" },
   "license": "UNLICENSED",
   "mcpServers": "./nocetta.mcp.json"

@@ -234,7 +234,9 @@ Two things shift the balance toward surfacing:
 
 `NOCETTA_PUSH_OFF=1` disables the hook entirely (fail-open no-op) if you'd rather run
 without push-recall while keeping the citation-only Stop hook. The plugin install wires all
-three hooks; standalone, add `UserPromptSubmit` and `PreCompact` the same way as `Stop`
+three hooks, plus a `SessionStart` entry with matcher `compact` running the same `hook
+pre-compact` command for hosts that lack `PreCompact` (ZCode). Standalone, add
+`UserPromptSubmit` and `PreCompact` the same way as `Stop`
 above, pointing at `hook user-prompt-submit` and `hook pre-compact`.
 
 ### CI
