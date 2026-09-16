@@ -257,7 +257,17 @@ never truth. No commit until measured.
 ## Parking lot (explicitly deferred, with promotion conditions)
 
 - **Embeddings / semantic recall** — promote on a demonstrated paraphrase-shaped miss in
-  real dogfood use (per PLAN.md; do not relitigate early).
+  real dogfood use (per PLAN.md; do not relitigate early). Reference recipe when it lands
+  (from jarvis-code/JLC's raw-recall pipeline, adapted to our lights): a two-stage rank, not
+  a new retrieval path. Keep the existing BM25 candidate-gen (Slice 6) as stage one — it
+  narrows to a keyword pool — then add an embedding rerank as stage two: encode bodies once
+  (jarvis uses `bge-m3`), rerank the pool by cosine similarity, return the top-k with the
+  usual recency/correction bonuses folded in. Load-bearing constraint: rerank **orders, it
+  never decides currency** — tip-resolution, scope, valid-window, and dirty-exclusion all
+  run *before* the rerank sees a candidate (light 1; PLAN.md "Matching finds; ranking
+  orders"). The embedding index is a rebuildable fold over the bodies, never truth (light 2),
+  so it can be deleted and regenerated and is git-ignored like the recall log. This is a
+  shelved reference, not a commitment — the promotion condition above still gates it.
 - **Scripted eval harness** — promote only as a replay of recorded real dogfood
   sessions; never a hand-built fixture benchmark (overfit risk, settled 2026-09-08).
 - **Python/Go/Rust locators** — promote on the first real non-TS/JS dogfood project.
