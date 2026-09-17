@@ -2,6 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { open } from "../facade/open.js";
 import { resolveRoot } from "../facade/root.js";
@@ -10,7 +11,12 @@ import { ONBOARD_PROMPT } from "./onboard.js";
 import { TOOLS } from "./tools.js";
 
 const SERVER_NAME = "nocetta";
-const SERVER_VERSION = "0.0.1";
+// src/mcp and dist/mcp both sit two levels below the package root (repo
+// checkout, installed package, tarball) — read the version it ships in,
+// never a second copy of it here.
+const { version: SERVER_VERSION } = createRequire(import.meta.url)("../../package.json") as {
+  version: string;
+};
 
 /**
  * The stdio MCP server over one facade: the loop (capture → recall → drift →
