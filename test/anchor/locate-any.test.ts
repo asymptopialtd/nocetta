@@ -7,7 +7,7 @@ import type { Anchor } from "../../src/anchor/index.js";
 // anchors through the TypeScript grammar), and that unknown extensions refuse
 // honestly instead of mis-parsing.
 describe("the anchor extension registry", () => {
-  it("is closed: exactly the nine code and two content extensions, no implicit default", () => {
+  it("is closed: exactly the eleven code and two content extensions, no implicit default", () => {
     expect(ANCHOR_STRATEGY_BY_EXTENSION).toEqual({
       ".ts": "code",
       ".tsx": "code",
@@ -18,20 +18,22 @@ describe("the anchor extension registry", () => {
       ".mjs": "code",
       ".cjs": "code",
       ".gd": "code",
+      ".py": "code",
+      ".go": "code",
       ".md": "content",
       ".markdown": "content",
     });
   });
 
-  it("refuses .py honestly, naming the extension — never a wrong-strategy parse", () => {
-    expect(() => strategyFor("src/model.py")).toThrow(
-      'no anchor strategy for ".py" — anchored kinds support TypeScript/JavaScript and GDScript sources and Markdown documents',
+  it("refuses an unsupported extension honestly, naming it — never a wrong-strategy parse", () => {
+    expect(() => strategyFor("src/model.rs")).toThrow(
+      'no anchor strategy for ".rs" — anchored kinds support TypeScript/JavaScript, GDScript, Python, and Go sources and Markdown documents',
     );
   });
 
   it("refuses an extensionless artifact, naming the path in place of the extension it lacks", () => {
     expect(() => strategyFor("Dockerfile")).toThrow(
-      'no anchor strategy for "Dockerfile" (no extension) — anchored kinds support TypeScript/JavaScript and GDScript sources and Markdown documents',
+      'no anchor strategy for "Dockerfile" (no extension) — anchored kinds support TypeScript/JavaScript, GDScript, Python, and Go sources and Markdown documents',
     );
   });
 
@@ -54,8 +56,8 @@ describe("the anchor extension registry", () => {
   });
 
   it("locateAnchor refuses an unknown extension too — drift cannot silently mis-route what capture refused", () => {
-    const anchor: Anchor = { locator: "src/model.py#Model", hash: "h", artifactPath: "src/model.py" };
-    expect(() => locateAnchor(anchor, "# Model\n")).toThrow(/no anchor strategy for "\.py"/);
+    const anchor: Anchor = { locator: "src/model.rs#Model", hash: "h", artifactPath: "src/model.rs" };
+    expect(() => locateAnchor(anchor, "# Model\n")).toThrow(/no anchor strategy for "\.rs"/);
   });
 });
 

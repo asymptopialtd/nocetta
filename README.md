@@ -309,6 +309,7 @@ pnpm install
 pnpm test
 ```
 
-Stack: TypeScript (strict, ESM/NodeNext), tree-sitter (native `tree-sitter` +
-`tree-sitter-typescript`, symbol locator + normalized content hash), `js-yaml` for
-frontmatter, `vitest` for tests. No database, no server, no LLM on the correctness path.
+Stack: TypeScript (strict, ESM/NodeNext), tree-sitter (wasm grammars for
+TypeScript/JavaScript, Python, and Go; native `tree-sitter` for GDScript;
+symbol locator + normalized content hash), `js-yaml` for frontmatter, `vitest`
+for tests. No database, no server, no LLM on the correctness path.

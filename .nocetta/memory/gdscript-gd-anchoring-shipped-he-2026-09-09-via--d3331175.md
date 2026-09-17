@@ -4,7 +4,7 @@ summary: GDScript (`.gd`) anchoring shipped (He, 2026-09-09) via the node-tree-s
 scope: global
 anchors:
   - locator: src/anchor/locate-any.ts › const ANCHOR_STRATEGY_BY_EXTENSION
-    hash: 99ccad17f55a2bf1acc9a121553a4b904d43d9e172ffb4218db795a9bda65b32
+    hash: 6a0257c85e13c58d2324d856e043ee33a3914b4cd0edc8616bddaa6407a73d0c
     artifactPath: src/anchor/locate-any.ts
 edges:
   - type: supersedes

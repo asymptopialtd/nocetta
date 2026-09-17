@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
 import { Language, Parser, type Node } from "web-tree-sitter";
 import { extractGdscriptSymbols } from "./symbols-gdscript.js";
+import { extractGoSymbols } from "./symbols-go.js";
+import { extractPythonSymbols } from "./symbols-python.js";
 import { SEP, hashOf, normalizedSymbolText } from "./symbol-hash.js";
 import type { SymbolInfo, SymbolKind } from "./types.js";
 import type { SymbolLocator } from "./locator.js";
@@ -11,6 +13,10 @@ import type { SymbolLocator } from "./locator.js";
  * (Node, browser, edge). The one-time async init (load the runtime + grammar
  * wasm) happens at module load via top-level await, so `extractSymbols` stays
  * synchronous for callers.
+ *
+ * Python and Go ride the same wasm path in their own modules
+ * ({@link extractPythonSymbols}, {@link extractGoSymbols}) — their grammars
+ * ship prebuilt wasm too, so `.py` and `.go` need no native build.
  *
  * GDScript is the exception: its only grammar ships as a native binding, not a
  * wasm (settled with He, 2026-09-09 — the first non-TS/JS dogfood was a Godot
@@ -114,13 +120,17 @@ function extractTsSymbols(filePath: string, source: string): SymbolInfo[] {
 
 /**
  * Enumerate stable-path symbols from a source file, routed to the grammar its
- * extension takes. `.gd` (GDScript) goes to the native binding; every other
- * code extension the registry admits (TypeScript, and JavaScript riding the TS
- * grammar) goes to the wasm parser above. The locator-string format is
- * identical across both, so an anchor reads the same whatever the language.
+ * extension takes. `.gd` (GDScript) goes to the native binding; `.py` and `.go`
+ * go to their own wasm modules; every other code extension the registry admits
+ * (TypeScript, and JavaScript riding the TS grammar) goes to the wasm parser
+ * above. The locator-string format is identical across all of them, so an
+ * anchor reads the same whatever the language.
  */
 export function extractSymbols(filePath: string, source: string): SymbolInfo[] {
-  if (filePath.toLowerCase().endsWith(".gd")) return extractGdscriptSymbols(filePath, source);
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith(".gd")) return extractGdscriptSymbols(filePath, source);
+  if (lower.endsWith(".py")) return extractPythonSymbols(filePath, source);
+  if (lower.endsWith(".go")) return extractGoSymbols(filePath, source);
   return extractTsSymbols(filePath, source);
 }
 

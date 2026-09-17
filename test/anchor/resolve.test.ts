@@ -6,15 +6,15 @@ import { resolveAnchor } from "../../src/anchor/resolve.js";
 // read as its own. The registry check also precedes the artifact read, so no
 // repoRoot/readArtifact is needed for these refusals to fire.
 describe("resolveAnchor routing refusals", () => {
-  it("refuses a .py symbol target with the registry error carrying the remember prefix", () => {
-    expect(() => resolveAnchor({ strategy: "code", artifactPath: "src/model.py", symbolName: "Model" }, { verb: "remember" })).toThrow(
-      'remember: no anchor strategy for ".py" — anchored kinds support TypeScript/JavaScript and GDScript sources and Markdown documents',
+  it("refuses an unsupported symbol target with the registry error carrying the remember prefix", () => {
+    expect(() => resolveAnchor({ strategy: "code", artifactPath: "src/model.rs", symbolName: "Model" }, { verb: "remember" })).toThrow(
+      'remember: no anchor strategy for ".rs" — anchored kinds support TypeScript/JavaScript, GDScript, Python, and Go sources and Markdown documents',
     );
   });
 
-  it("refuses a .py heading target the same way — content routing is registry-bound too", () => {
-    expect(() => resolveAnchor({ strategy: "content", artifactPath: "src/model.py", heading: "Model" }, { verb: "reAnchor" })).toThrow(
-      'reAnchor: no anchor strategy for ".py" — anchored kinds support TypeScript/JavaScript and GDScript sources and Markdown documents',
+  it("refuses an unsupported heading target the same way — content routing is registry-bound too", () => {
+    expect(() => resolveAnchor({ strategy: "content", artifactPath: "src/model.rs", heading: "Model" }, { verb: "reAnchor" })).toThrow(
+      'reAnchor: no anchor strategy for ".rs" — anchored kinds support TypeScript/JavaScript, GDScript, Python, and Go sources and Markdown documents',
     );
   });
 
@@ -33,7 +33,7 @@ describe("resolveAnchor routing refusals", () => {
         { strategy: "code", artifactPath: "lore/mage.md", symbolName: "Elminster" },
         { verb: "remember", readArtifact: () => "# Elminster\n" },
       ),
-    ).toThrow(/remember: "lore\/mage\.md" takes the content strategy — symbolName anchors TypeScript\/JavaScript and GDScript sources/);
+    ).toThrow(/remember: "lore\/mage\.md" takes the content strategy — symbolName anchors TypeScript\/JavaScript, GDScript, Python, and Go sources/);
   });
 });
 

@@ -31,6 +31,10 @@ export const ANCHOR_STRATEGY_BY_EXTENSION: Readonly<Record<string, AnchorStrateg
   // but the strategy is still "code" — the registry cares which locator, not
   // which backend.
   ".gd": "code",
+  // Python and Go each ride their own prebuilt-wasm grammar (see
+  // symbols-python.ts / symbols-go.ts); strategy is still "code".
+  ".py": "code",
+  ".go": "code",
   ".md": "content",
   ".markdown": "content",
 };
@@ -52,7 +56,7 @@ export function strategyFor(artifactPath: string, verb?: string): AnchorStrategy
   if (strategy) return strategy;
   const named = ext === "" ? `"${artifactPath}" (no extension)` : `"${ext}"`;
   throw new Error(
-    `${verb ? `${verb}: ` : ""}no anchor strategy for ${named} — anchored kinds support TypeScript/JavaScript and GDScript sources and Markdown documents`,
+    `${verb ? `${verb}: ` : ""}no anchor strategy for ${named} — anchored kinds support TypeScript/JavaScript, GDScript, Python, and Go sources and Markdown documents`,
   );
 }
 

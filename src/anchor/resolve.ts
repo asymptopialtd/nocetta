@@ -66,7 +66,7 @@ export function resolveAnchor(target: AnchorTarget, opts: ResolveAnchorOptions):
   if (strategy !== target.strategy) {
     throw new Error(
       `${opts.verb}: "${target.artifactPath}" takes the ${strategy} strategy — ${
-        target.strategy === "code" ? "symbolName anchors TypeScript/JavaScript and GDScript sources" : "heading anchors Markdown documents"
+        target.strategy === "code" ? "symbolName anchors TypeScript/JavaScript, GDScript, Python, and Go sources" : "heading anchors Markdown documents"
       }`,
     );
   }
