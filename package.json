@@ -3,7 +3,7 @@
   "version": "0.0.2",
   "license": "MIT",
   "type": "module",
-  "description": "Anchored, bitemporal, DAG memory system for coding agents (spike).",
+  "description": "Anchored, bitemporal, DAG memory system for coding agents.",
   "author": "Asymptopia Ltd",
   "repository": {
     "type": "git",
