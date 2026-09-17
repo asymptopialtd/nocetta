@@ -248,6 +248,13 @@ Rules that make the format load-bearing (not decorative):
   separate relation with separate traversal semantics — dirty-propagation follows
   `anchored-to` and stops at superseded nodes.
 
+## Support
+
+Nocetta is free and MIT-licensed. If it earns its keep, you can chip in what
+it's worth to you — it funds the next slice.
+
+[**Support Nocetta**](https://buy.stripe.com/3cI14n4hfdM92Be3sG1sQ07)
+
 ## Development
 
 ```sh
