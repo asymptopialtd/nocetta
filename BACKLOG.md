@@ -194,11 +194,14 @@ before a seventh is even discussed:
 Results shaped per light 7: id, anchor, authority, validity, staleness reason — ranked,
 budgeted, never a dump.
 
-Packaging posture (settled 2026-09-08, He): **closed source.** Stay `private: true`,
-`license: "UNLICENSED"`; distribute to trusted projects by tarball (`pnpm pack` →
-`file:` install) or a private registry. A public npm listing would expose the source
-even under UNLICENSED — registry visibility is not licensing. Opening up is a one-way
-door; revisit only after real adoption.
+Packaging posture (re-settled 2026-09-17, He; supersedes the 2026-09-08 closed-source
+call): **MIT + CLA, private until published.** LICENSE is held by Asymptopia Ltd,
+CLA.md is a license-style grant (keeps dual-licensing open). `private: true` stays as
+the publish brake; tarball/private-registry distribution to trusted projects continues.
+The 2026-09-17 store audit — 39 memory files, no competitor names, secrets, or
+personal references, and no deletions ever in git history — cleared the committed store
+to go public with full history. Registry visibility is still not licensing; a public
+listing exposes the source, and that is now accepted rather than feared.
 
 **Acceptance:** a spawn-and-drive integration test exercises capture → recall → drift →
 repair through tool calls only, against a fixture repo. **Commit:**

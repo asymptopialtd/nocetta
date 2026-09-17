@@ -36,9 +36,10 @@ from the files alone, with no database and no runtime.
 
 ## Getting started
 
-Nocetta is closed source for now (`private: true`, UNLICENSED): it ships as a tarball to
-trusted projects — `pnpm pack` in a checkout, then a `file:` install or a private registry
-(see BACKLOG.md for the posture). Three ways in:
+Nocetta's repository is private for now (`private: true`): the code is MIT-licensed
+(LICENSE; contributions per CLA.md) and ships as a tarball to trusted projects — `pnpm
+pack` in a checkout, then a `file:` install or a private registry (see BACKLOG.md for the
+posture). Three ways in:
 
 **On Claude Code — the plugin (easiest).** The repo is also a Claude Code plugin: its
 `.claude-plugin/plugin.json` bundles the MCP server (`nocetta.mcp.json`) and the citation
