@@ -1,11 +1,11 @@
-import { createRequire } from "node:module";
-import { Language, Parser, type Node } from "web-tree-sitter";
+import { Parser, type Node } from "web-tree-sitter";
 import { extractGdscriptSymbols } from "./symbols-gdscript.js";
 import { extractGoSymbols } from "./symbols-go.js";
 import { extractPythonSymbols } from "./symbols-python.js";
 import { SEP, hashOf, normalizedSymbolText } from "./symbol-hash.js";
 import type { SymbolInfo, SymbolKind } from "./types.js";
 import type { SymbolLocator } from "./locator.js";
+import { loadWasmLanguage } from "./wasm.js";
 
 /**
  * Parser backend: `web-tree-sitter` (WASM) for TypeScript/JavaScript. No
@@ -27,11 +27,7 @@ import type { SymbolLocator } from "./locator.js";
  * standalone with no configuration. A host that wants a single shared parser
  * injects its own {@link SymbolLocator} instead (see `locator.ts`).
  */
-const require = createRequire(import.meta.url);
-await Parser.init({
-  locateFile: () => require.resolve("web-tree-sitter/tree-sitter.wasm"),
-});
-const language = await Language.load(require.resolve("tree-sitter-typescript/tree-sitter-typescript.wasm"));
+const language = await loadWasmLanguage("tree-sitter-typescript/tree-sitter-typescript.wasm");
 const parser = new Parser();
 parser.setLanguage(language);
 

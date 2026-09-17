@@ -1,20 +1,17 @@
-import { createRequire } from "node:module";
-import { Language, Parser, type Node } from "web-tree-sitter";
+import { Parser, type Node } from "web-tree-sitter";
 import { SEP, hashOf, normalizedSymbolText } from "./symbol-hash.js";
 import type { SymbolInfo, SymbolKind } from "./types.js";
+import { loadWasmLanguage } from "./wasm.js";
 
 /**
  * Python parser backend: `web-tree-sitter` (WASM), the same portable path the
  * TypeScript/JavaScript grammars ride — the grammar ships a prebuilt
- * `tree-sitter-python.wasm`, so no native build is needed. The one-time async
- * init runs at module load via top-level await, keeping
- * {@link extractPythonSymbols} synchronous for callers, matching symbols.ts.
+ * `tree-sitter-python.wasm`, so no native build is needed. The shared runtime
+ * (wasm.ts) binds once per process; init still runs at module load via
+ * top-level await, keeping {@link extractPythonSymbols} synchronous for
+ * callers, matching symbols.ts.
  */
-const require = createRequire(import.meta.url);
-await Parser.init({
-  locateFile: () => require.resolve("web-tree-sitter/tree-sitter.wasm"),
-});
-const language = await Language.load(require.resolve("tree-sitter-python/tree-sitter-python.wasm"));
+const language = await loadWasmLanguage("tree-sitter-python/tree-sitter-python.wasm");
 const parser = new Parser();
 parser.setLanguage(language);
 
