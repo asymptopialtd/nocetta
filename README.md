@@ -32,17 +32,18 @@ the files alone, with no database and no runtime.
 MIT (`LICENSE`; contributions per `CLA.md`). Three ways in.
 
 **On Claude Code — the plugin.** The repo is also a Claude Code plugin: one install bundles
-the MCP server and the hooks, no `settings.json` editing.
+the MCP server and the hooks, no `settings.json` editing:
 
-```sh
-git clone https://github.com/asymptopialtd/nocetta
-cd nocetta && pnpm install && pnpm build
-claude --plugin-dir /path/to/nocetta
+```
+/plugin marketplace add asymptopialtd/nocetta
+/plugin install nocetta@nocetta
 ```
 
-Plugins load from a checkout with `dist` built — `dist` is gitignored, so a bare clone isn't
-enough (see `BACKLOG.md` for the posture). The plugin is a thin wrapper: everything it points
-at is the same MCP server and CLI below.
+`dist/` and `package-lock.json` are committed so the marketplace's frozen, no-scripts
+dependency install (`npm ci`) yields a runnable tree — the native grammars ship all-platform
+prebuilds, so nothing compiles. Local development on a checkout stays the same:
+`pnpm install && pnpm build`, then `claude --plugin-dir /path/to/nocetta`. The plugin is a
+thin wrapper: everything it points at is the same MCP server and CLI below.
 
 **On any harness — the MCP server.** Point the client at npm; that's the whole config:
 
