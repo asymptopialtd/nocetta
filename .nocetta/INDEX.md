@@ -33,6 +33,7 @@
 - The recall value ledger is a surfaced×complement 2×2 (working/redundant/dormant/prunable); never-surfaced alone never means delete. — value, global, unanchored (c3cc3128)
 - GDScript (`.gd`) anchoring shipped (He, 2026-09-09) via the node-tree-sitter native binding — a deliberate exception to… — value, global, src/anchor/locate-any.ts › const ANCHOR_STRATEGY_BY_EXTENSION (d3331175)
 - The MCP tool surface is capped at six tools. New capability folds into an existing — value, global, unanchored (d53987bf)
+- Nocetta public 2026-09-17: repo + npm v0.0.2 verified; dangling-SHA GC and CLA automation optional follow-ups. — lore-fact, global, unanchored (d62832c1)
 - Noise is a product killer, not a cosmetic issue (He, 2026-09-08): LLM agents adapt quickly to avoid noise and failures — an advisory that fires wrongly gets ruled out wholesale, and every real signal it carries dies with it. Every surface (conflict advisories, the worklist, search results) must be polished to near-zero false positives even at the cost of recall; dead beliefs (superseded, expired) are never reported as needing attention; unanchored conflicts require positive subject evidence, never scope alone. — value, global, unanchored (ddc165f1)
 - Project norms live as memories in the committed store, not AGENTS.md — the store ships to every contributor's agent. — value, global, unanchored (e5909f64)
 - Multi-user scope: DAG makes divergence data — merge is a local command, CRDTs rejected; core merge stays MIT, coordination is the paid tier. — value, global, unanchored (e9a8ad13)
