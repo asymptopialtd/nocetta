@@ -2,27 +2,20 @@
 
 > Anchored, bitemporal memory for coding agents — facts that know when they've gone stale.
 
-Nocetta is an anchored, bitemporal, DAG memory system for coding agents. It is a spike:
-a from-scratch proof that a memory node tied to a real code artifact (a symbol, located
-by tree-sitter, with a normalized content hash) can detect its own staleness deterministically
-— no LLM in the correctness path — and that retrieval can resolve to a live, non-superseded
-tip instead of ever serving a stale fact as current.
-
-Sibling project to `sandkeep`. Positioned against Mem0 (vector retrieval + LLM-judged
-ADD/UPDATE/DELETE, destructive on contradiction, no code anchoring) and Zep/Graphiti
-(bitemporal knowledge graph, but still no code anchor). See `PLAN.md` for the full thesis,
-the competitive wedge, and the slice-by-slice build contract this repo implements.
-`BACKLOG.md` is the contract for the next phase: guiding lights + the seam-by-seam
-path from proven spike to droppable memory.
+Nocetta is a memory system for coding agents built on one load-bearing idea: every fact is
+anchored to the code it describes — a tree-sitter locator plus a normalized content hash — so
+staleness is detected deterministically, with no LLM in the correctness path. Retrieval resolves
+only to live, non-superseded tips, so a stale fact is never served as current. It is a spike: a
+from-scratch proof of that idea. Full thesis and competitive wedge in `PLAN.md`; the next-phase
+contract in `BACKLOG.md`; sibling project `sandkeep`.
 
 ## Thesis
 
 **Anchoring kills drift.** A memory node carries an anchor — a stable locator plus a content
 hash — to a real code artifact. When the artifact changes, the hash differs, the node is
-marked dirty, and dirtiness propagates to memories that depend on it. Retrieval resolves to
-the live tip of a supersession chain, so a stale fact is never served as current. Everything
-is stored as plain files that are a *sufficient* source of truth: live state is reconstructable
-from the files alone, with no database and no runtime.
+marked dirty, and dirtiness propagates to memories that depend on it. Everything is stored
+as plain files that are a *sufficient* source of truth: live state is reconstructable from
+the files alone, with no database and no runtime.
 
 ## The wedge
 
@@ -36,25 +29,22 @@ from the files alone, with no database and no runtime.
 
 ## Getting started
 
-Nocetta is MIT-licensed (LICENSE; contributions per CLA.md) and installable from npm.
-Three ways in:
+MIT (`LICENSE`; contributions per `CLA.md`). Three ways in.
 
-**On Claude Code — the plugin.** The repo is also a Claude Code plugin: its
-`.claude-plugin/plugin.json` bundles the MCP server (`nocetta.mcp.json`) and the citation
-hooks (`hooks/hooks.json`), so one install wires both — no `settings.json` editing.
-Plugins load from a checkout with `dist` built: `git clone
-https://github.com/asymptopialtd/nocetta && pnpm install && pnpm build`, then `claude
---plugin-dir /path/to/nocetta` (`dist` is gitignored, so a bare clone is not enough — see
-BACKLOG.md for the posture). The plugin is a thin wrapper: everything it points at is the
-same portable MCP server and CLI below, so nothing here is Claude-Code-only except the
-auto-wiring itself.
+**On Claude Code — the plugin.** The repo is also a Claude Code plugin: one install bundles
+the MCP server and the hooks, no `settings.json` editing.
 
-**For an agent on any harness — the MCP server.** Point an MCP client at the npm package;
-that's the whole config. The repo root is *discovered*, not declared — the server walks up from its
-working directory to the nearest ancestor holding `.nocetta/` or `.git/`, the way git
-finds a repo — so one registration serves every project, and memories always land in
-that project's `<repo>/.nocetta/memory/` (committed to the project's git, never
-anywhere global):
+```sh
+git clone https://github.com/asymptopialtd/nocetta
+cd nocetta && pnpm install && pnpm build
+claude --plugin-dir /path/to/nocetta
+```
+
+Plugins load from a checkout with `dist` built — `dist` is gitignored, so a bare clone isn't
+enough (see `BACKLOG.md` for the posture). The plugin is a thin wrapper: everything it points
+at is the same MCP server and CLI below.
+
+**On any harness — the MCP server.** Point the client at npm; that's the whole config:
 
 ```json
 {
@@ -67,20 +57,18 @@ anywhere global):
 }
 ```
 
-`NOCETTA_ROOT` (env) and `--root` (CLI) are overrides for cross-repo tooling and
-tests — never a requirement. Set one only when the working directory is not inside
-the project you mean to remember.
+The repo root is discovered, not declared — the server walks up from its working directory to
+the nearest ancestor holding `.nocetta/` or `.git/`, the way git finds a repo — so one
+registration serves every project, and memories land in that project's `.nocetta/memory/`
+(committed to the project's git, never anywhere global). `NOCETTA_ROOT` (env) and `--root`
+(CLI) are overrides for cross-repo tooling and tests, never a requirement. The six tools'
+descriptions teach themselves, and the initialize response carries the workflow contract — no
+skill files to install; project-specific rules belong in the project's own `AGENTS.md`.
 
-The server registers six tools whose descriptions teach themselves, and the initialize
-response carries the workflow contract (when to remember, when to recall, the worklist) —
-no skill files to install; project-specific rules belong in the project's own AGENTS.md.
-
-**For a human — the library + CLI.** Install the package
-(`npm i nocetta`); `import { open } from "nocetta"` hosts the
-whole loop, and `node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js` is
-the human/CI surface — the flag is load-bearing, since an installed dist sits behind a
-package-manager symlink and the entrypoint guard compares argv against the resolved
-module URL.
+**In your own tooling and CI — the library + CLI.** `npm i nocetta`; `import { open } from
+"nocetta"` hosts the whole loop. The CLI runs as
+`node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js` — the flag is load-bearing,
+since an installed `dist` sits behind a package-manager symlink.
 
 ### 60-second tour
 
@@ -151,28 +139,22 @@ to reach for each.
 
 ### For humans
 
-The CLI's `ls` browses the store one line per node; each memory is a markdown file under
-`.nocetta/memory/` — open them, hand-edit them (reads quarantine what they can't parse),
-git them. `.nocetta/INDEX.md` (beside `memory/`, not inside it) is a generated one-line-
-per-current-node listing, rewritten on every write — never hand-edit it, it never survives
-the next mutation.
+`nocetta ls` browses the store one line per node; each memory is a markdown file under
+`.nocetta/memory/` — open them, hand-edit them (reads quarantine what they can't parse), git
+them. `.nocetta/INDEX.md` is a generated listing, rewritten on every write — never hand-edit
+it.
 
-`nocetta ledger` reports the value ledger from the local recall log: which memories are
-**working** (surfaced and beyond the code), **redundant** (surfaced but the code already
-says it), **dormant** (never surfaced but beyond the code — latent insurance, kept), and
-**prunable** (never surfaced and already in the code — the only safe-to-clear quadrant).
-The log lives at `.nocetta/recall-log.jsonl` and is per-machine — nocetta keeps it out of
-git via a `.nocetta/.gitignore` it maintains itself, so never commit or share it.
+`nocetta ledger` reads the per-machine recall log (`.nocetta/recall-log.jsonl` — never commit
+or share it; nocetta keeps it out of git via a `.nocetta/.gitignore` it maintains itself) and
+sorts memories into four quadrants: **working** (surfaced and beyond the code), **redundant**
+(surfaced but the code already says it), **dormant** (never surfaced but latent insurance —
+kept), and **prunable** (never surfaced and already in the code — the only safe-to-clear
+quadrant).
 
 ### Hooks (optional)
 
-The recall log fills as an agent searches, and `used_ids` on `memory_search` lets an agent
-mark which hits it used. On Claude Code you can capture that last signal automatically
-instead: the `Stop` hook credits every memory whose anchored file the turn just edited —
-no agent effort, no context noise (it records, it never speaks back).
-
-**The plugin install already wires this** (`hooks/hooks.json`) — nothing to do. Only if you
-run the server standalone, without the plugin, add the hook to your `settings.json` by hand:
+The plugin wires all of this automatically (`hooks/hooks.json`). Standalone, add hooks to
+`settings.json` by hand — one per event:
 
 ```json
 {
@@ -184,61 +166,22 @@ run the server standalone, without the plugin, add the hook to your `settings.js
 }
 ```
 
-It reads the hook payload on stdin and writes only to the local recall log; `nocetta ledger`
-is where the credited memories show up.
-
-**Push-recall (`UserPromptSubmit`).** The Stop hook above only ever records — it never
-speaks back. This one does: on every user prompt it runs a keyword search over the prompt
-text and, only when it finds a genuinely strong, non-repetitive match, injects that one
-memory as dismissible background:
-
-```
-nocetta: a current belief that may relate to this — "<summary>" (id <id>); ignore if
-off-topic, or memory_search to pull the detail.
-```
-
-It is never phrased as an instruction, and most turns it says nothing at all — silence is
-the resting state. Three guardrails keep it that way:
-
-- **An absolute relevance floor** (`NOCETTA_PUSH_FLOOR`, default `9`). BM25 scores aren't
-  normalized, so "top-ranked" alone isn't evidence of relevance — a single shared common
-  word always scores above zero. The default was read off sampling this project's own
-  store: on-topic prompts scored top-hits of 9.6-13.3, while generic dev chatter (e.g. "can
-  you fix the typo in this comment", which happens to share "fix" with an unrelated
-  decision) still reached 7.5. `9` sits above every sampled false positive and below every
-  sampled true positive. Raise it if your project's memories are still surfacing on
-  tangential prompts; lower it (never below what your own sampling shows is safe) if
-  genuinely relevant memories are being missed.
-- **A cap of one.** At most one memory injects per turn, and only the single strongest
-  candidate.
-- **Session-scoped dedup with a rising bar, not a permanent ban.** A memory that was
-  injected and later used (cited via the Stop hook, or acked) is suppressed for the rest of
-  the session — it's already served its purpose. A memory that was injected and ignored can
-  still re-fire later in the same session, but only once a new match's score clears the
-  prior one by a real margin — a materially stronger hit, not the same weak signal firing
-  again.
-
-Two things shift the balance toward surfacing:
-
-- **Anchor-gated matches.** When the prompt names a file a memory is anchored to, that's
-  direct evidence rather than a keyword coincidence, so the match bypasses the floor. It
-  still surfaces at most once per session, and a *prior anchor* suppresses a repeat — but a
-  prior *keyword* injection (which may have been a false positive the agent ignored) never
-  mutes a genuine anchor match, so the memory can still surface when its file actually comes
-  up. Paths are read straight out of the prompt text (repo-relative or absolute), so no edit
-  is needed for this to fire.
-- **Compaction resets the window.** When a session's context is compacted, the "the agent
-  already saw this" assumption behind the dedup expires — the injection that suppressed a
-  repeat may have been summarized away. A `PreCompact` hook records the compaction, and
-  push-recall stops counting injections from before it, so a still-relevant memory can
-  resurface afterward.
-
-`NOCETTA_PUSH_OFF=1` disables the hook entirely (fail-open no-op) if you'd rather run
-without push-recall while keeping the citation-only Stop hook. The plugin install wires all
-three hooks, plus a `SessionStart` entry with matcher `compact` running the same `hook
-pre-compact` command for hosts that lack `PreCompact` (ZCode). Standalone, add
-`UserPromptSubmit` and `PreCompact` the same way as `Stop`
-above, pointing at `hook user-prompt-submit` and `hook pre-compact`.
+- **Stop — citation crediting.** Credits every memory whose anchored file the turn just
+  edited — the same signal an agent can send manually via `used_ids` on `memory_search`. It
+  records; it never speaks back. Add `UserPromptSubmit` → `hook user-prompt-submit` and
+  `PreCompact` → `hook pre-compact` the same way (plus a `SessionStart` entry with matcher
+  `compact` for hosts without `PreCompact`).
+- **Push-recall (`UserPromptSubmit`).** On each prompt, runs a keyword search and — only on a
+  genuinely strong, non-repetitive match — injects one memory as dismissible background, never
+  phrased as an instruction. Silence is the resting state, kept by three guardrails: an
+  absolute relevance floor (`NOCETTA_PUSH_FLOOR`, default `9`, read off sampling this repo's
+  own store — adjust only against your own sampling), a cap of one memory per turn, and
+  session dedup with a rising bar (injected-then-used stays suppressed for the session;
+  injected-and-ignored can re-fire only on a materially stronger score). A prompt that names
+  an anchored file bypasses the floor (once per session), and compaction resets the dedup
+  window.
+- **`NOCETTA_PUSH_OFF=1`** disables push-recall (fail-open no-op), keeping the citation-only
+  Stop hook.
 
 ### CI
 
