@@ -36,21 +36,21 @@ from the files alone, with no database and no runtime.
 
 ## Getting started
 
-Nocetta's repository is private for now (`private: true`): the code is MIT-licensed
-(LICENSE; contributions per CLA.md) and ships as a tarball to trusted projects — `pnpm
-pack` in a checkout, then a `file:` install or a private registry (see BACKLOG.md for the
-posture). Three ways in:
+Nocetta is MIT-licensed (LICENSE; contributions per CLA.md) and installable from npm.
+Three ways in:
 
-**On Claude Code — the plugin (easiest).** The repo is also a Claude Code plugin: its
+**On Claude Code — the plugin.** The repo is also a Claude Code plugin: its
 `.claude-plugin/plugin.json` bundles the MCP server (`nocetta.mcp.json`) and the citation
-Stop hook (`hooks/hooks.json`), so one install wires both — no `settings.json` editing.
-Point Claude Code at a built checkout with `claude --plugin-dir /path/to/nocetta`, or serve
-it from a private marketplace. The plugin is a thin wrapper: everything it points at is the
+hooks (`hooks/hooks.json`), so one install wires both — no `settings.json` editing.
+Plugins load from a checkout with `dist` built: `git clone
+https://github.com/asymptopialtd/nocetta && pnpm install && pnpm build`, then `claude
+--plugin-dir /path/to/nocetta` (`dist` is gitignored, so a bare clone is not enough — see
+BACKLOG.md for the posture). The plugin is a thin wrapper: everything it points at is the
 same portable MCP server and CLI below, so nothing here is Claude-Code-only except the
 auto-wiring itself.
 
-**For an agent on any harness — the MCP server.** Point an MCP client at the dist; that's the whole
-config. The repo root is *discovered*, not declared — the server walks up from its
+**For an agent on any harness — the MCP server.** Point an MCP client at the npm package;
+that's the whole config. The repo root is *discovered*, not declared — the server walks up from its
 working directory to the nearest ancestor holding `.nocetta/` or `.git/`, the way git
 finds a repo — so one registration serves every project, and memories always land in
 that project's `<repo>/.nocetta/memory/` (committed to the project's git, never
@@ -60,8 +60,8 @@ anywhere global):
 {
   "mcpServers": {
     "nocetta": {
-      "command": "node",
-      "args": ["/path/to/nocetta/dist/mcp/server.js"]
+      "command": "npx",
+      "args": ["-y", "-p", "nocetta", "nocetta-mcp"]
     }
   }
 }
@@ -75,8 +75,8 @@ The server registers six tools whose descriptions teach themselves, and the init
 response carries the workflow contract (when to remember, when to recall, the worklist) —
 no skill files to install; project-specific rules belong in the project's own AGENTS.md.
 
-**For a human — the library + CLI.** Install the tarball
-(`pnpm add nocetta@file:./nocetta-0.0.1.tgz`); `import { open } from "nocetta"` hosts the
+**For a human — the library + CLI.** Install the package
+(`npm i nocetta`); `import { open } from "nocetta"` hosts the
 whole loop, and `node --preserve-symlinks-main node_modules/nocetta/dist/cli/cli.js` is
 the human/CI surface — the flag is load-bearing, since an installed dist sits behind a
 package-manager symlink and the entrypoint guard compares argv against the resolved

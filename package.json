@@ -1,10 +1,28 @@
 {
   "name": "nocetta",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.0.2",
   "license": "MIT",
   "type": "module",
   "description": "Anchored, bitemporal, DAG memory system for coding agents (spike).",
+  "author": "Asymptopia Ltd",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asymptopialtd/nocetta.git"
+  },
+  "bugs": {
+    "url": "https://github.com/asymptopialtd/nocetta/issues"
+  },
+  "keywords": [
+    "memory",
+    "agent-memory",
+    "coding-agents",
+    "mcp",
+    "model-context-protocol",
+    "knowledge-graph",
+    "bitemporal",
+    "tree-sitter",
+    "claude-code"
+  ],
   "files": [
     "dist"
   ],
