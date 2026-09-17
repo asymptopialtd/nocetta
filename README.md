@@ -253,6 +253,13 @@ pnpm install
 pnpm test
 ```
 
+Releases: `pnpm release <version | patch | minor | major>` — syncs the three
+manifests, typechecks, tests, rebuilds `dist/` (committed for the plugin
+marketplace), regenerates `package-lock.json`, runs the marketplace-install
+simulation against a fresh clone, commits, and tags. `pnpm release --check`
+runs the same battery without a version bump — it is what CI executes, so a
+stale `dist/` or lockfile fails there instead of at someone's install.
+
 Stack: TypeScript (strict, ESM/NodeNext), tree-sitter (wasm grammars for
 TypeScript/JavaScript, Python, and Go; native `tree-sitter` for GDScript;
 symbol locator + normalized content hash), `js-yaml` for frontmatter, `vitest`

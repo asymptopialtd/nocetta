@@ -3,6 +3,7 @@
   "version": "0.0.3",
   "license": "MIT",
   "type": "module",
+  "packageManager": "pnpm@12.4.1",
   "description": "Anchored, bitemporal, DAG memory system for coding agents.",
   "author": "Asymptopia Ltd",
   "repository": {
@@ -88,7 +89,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
