@@ -1,6 +1,6 @@
 {
   "name": "nocetta",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@12.4.1",
@@ -107,6 +107,6 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^5.0.1"
   }
 }
