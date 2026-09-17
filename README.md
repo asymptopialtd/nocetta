@@ -64,7 +64,9 @@ registration serves every project, and memories land in that project's `.nocetta
 (committed to the project's git, never anywhere global). `NOCETTA_ROOT` (env) and `--root`
 (CLI) are overrides for cross-repo tooling and tests, never a requirement. The six tools'
 descriptions teach themselves, and the initialize response carries the workflow contract — no
-skill files to install; project-specific rules belong in the project's own `AGENTS.md`.
+skill files to install; project-specific rules belong in the project's own `AGENTS.md`. This
+config wires the six tools only: the hooks are an optional second layer (see Hooks below),
+and on Claude Code the plugin wires them in the same install.
 
 **In your own tooling and CI — the library + CLI.** `npm i nocetta`; `import { open } from
 "nocetta"` hosts the whole loop. The CLI runs as
