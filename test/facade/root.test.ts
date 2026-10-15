@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveRoot } from "../../src/facade/root.js";
+import { isBareMultiRepoParent, resolveRoot, resolveRootFromArtifact } from "../../src/facade/root.js";
 
 /**
  * Root discovery (the per-project answer): the store root is found by walking
@@ -67,5 +67,60 @@ describe("resolveRoot", () => {
 
     expect(resolveRoot({ explicit: "elsewhere", from: repo })).toBe(join(repo, "elsewhere"));
     expect(resolveRoot({ explicit: repo, from: join(repo, ".nocetta") })).toBe(repo);
+  });
+});
+
+/**
+ * Resolving the store from the artifact a write names — the anchored-write
+ * routing that keeps a parent-launched server from planting one shared store:
+ * the path identifies the project, the walk finds its boundary.
+ */
+describe("resolveRootFromArtifact", () => {
+  it("walks up from the artifact's own location to the project, not the launch base", () => {
+    // parent/ holds a child project repo; the server's base IS the bare parent
+    mkdirSync(join(repo, "game", ".git"), { recursive: true });
+    mkdirSync(join(repo, "game", "ui", "duat"), { recursive: true });
+    writeFileSync(join(repo, "game", "ui", "duat", "foe.gd"), "extends Node\n", "utf8");
+
+    const resolved = resolveRootFromArtifact(repo, "game/ui/duat/foe.gd");
+    expect(resolved.root).toBe(join(repo, "game"));
+    // stored path is relative to the project store, never the launch base
+    expect(resolved.artifactPath).toBe("ui/duat/foe.gd");
+  });
+
+  it("a nested project store beats the outer repo, and the path rebases to it", () => {
+    mkdirSync(join(repo, ".git"), { recursive: true });
+    mkdirSync(join(repo, "sub", ".nocetta"), { recursive: true });
+    mkdirSync(join(repo, "sub", "src"), { recursive: true });
+    writeFileSync(join(repo, "sub", "src", "a.ts"), "export const a = 1;\n", "utf8");
+
+    const resolved = resolveRootFromArtifact(repo, "sub/src/a.ts");
+    expect(resolved.root).toBe(join(repo, "sub"));
+    expect(resolved.artifactPath).toBe("src/a.ts");
+  });
+});
+
+/**
+ * The guard that would have caught the original bug: a bare parent of child
+ * repos is not itself a store target.
+ */
+describe("isBareMultiRepoParent", () => {
+  it("is true for a bare directory holding child .git / .nocetta projects", () => {
+    mkdirSync(join(repo, "game-a", ".git"), { recursive: true });
+    mkdirSync(join(repo, "game-b", ".nocetta"), { recursive: true });
+    expect(isBareMultiRepoParent(repo)).toBe(true);
+  });
+
+  it("is false once the directory is itself a repo or a store", () => {
+    mkdirSync(join(repo, "child", ".git"), { recursive: true });
+    mkdirSync(join(repo, ".git"), { recursive: true });
+    // a real project that merely contains a vendored sub-repo is not a bare parent
+    expect(isBareMultiRepoParent(repo)).toBe(false);
+  });
+
+  it("is false for a plain directory with no child projects", () => {
+    mkdirSync(join(repo, "notes"), { recursive: true });
+    mkdirSync(join(repo, "assets"), { recursive: true });
+    expect(isBareMultiRepoParent(repo)).toBe(false);
   });
 });

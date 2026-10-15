@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 const STORE_MARKER = ".nocetta";
 const GIT_MARKER = ".git";
 /**
@@ -17,6 +17,12 @@ const GIT_MARKER = ".git";
  * Per-level order matters: at any level an existing store beats a git marker,
  * but the NEAREST level wins overall — a monorepo's root store does not
  * swallow a subproject's.
+ *
+ * This is the per-DIRECTORY answer. The long-lived MCP server resolves PER
+ * WRITE instead (see mcp/router.ts): the directory this walk starts from is
+ * chosen from the write itself — an anchored write's artifactPath, or the MCP
+ * client's advertised workspace roots — so a server launched at a parent
+ * holding many child repos still routes each belief to the right project.
  */
 export function resolveRoot(opts = {}) {
     const start = resolve(opts.from ?? process.cwd());
@@ -33,4 +39,49 @@ export function resolveRoot(opts = {}) {
             return start; // filesystem root: no markers anywhere, stay put
         current = parent;
     }
+}
+/**
+ * The store an anchored write belongs to, resolved from the artifact it names
+ * rather than from the server's launch directory. `artifactPath` is whatever
+ * the caller passed (relative to `base` — the server's launch cwd — or
+ * absolute); we resolve it to a real file and walk up from its directory with
+ * the same discovery as resolveRoot. In the failure this exists to fix the
+ * caller passed `incremental_egyptian/ui/duat/duat_foe.gd` from a parent cwd,
+ * and this lands on `incremental_egyptian` (its `.git`), never the parent.
+ *
+ * Returns both the resolved store root and the artifactPath re-expressed
+ * relative to THAT root (posix): a belief's stored path is always relative to
+ * its own store, so routing the write to the right store must also rewrite the
+ * path it records.
+ */
+export function resolveRootFromArtifact(base, artifactPath) {
+    const absFile = resolve(base, artifactPath);
+    const root = resolveRoot({ from: dirname(absFile) });
+    const rel = relative(root, absFile).split("\\").join("/");
+    return { root, artifactPath: rel };
+}
+/**
+ * The guard that would have caught the original bug: true when `dir` is a bare
+ * directory — neither a `.nocetta/` store nor a `.git/` repo — that nonetheless
+ * holds one or more child projects (an immediate subdirectory with `.git/` or
+ * `.nocetta/`). Writing a store HERE fragments memory away from every child
+ * project, so resolution that lands on such a directory must refuse rather than
+ * silently create `<parent>/.nocetta`.
+ */
+export function isBareMultiRepoParent(dir) {
+    if (existsSync(join(dir, STORE_MARKER)) || existsSync(join(dir, GIT_MARKER)))
+        return false;
+    let entries;
+    try {
+        entries = readdirSync(dir);
+    }
+    catch {
+        return false; // unreadable dir: not our call to make, let the normal path error
+    }
+    for (const name of entries) {
+        const child = join(dir, name);
+        if (existsSync(join(child, GIT_MARKER)) || existsSync(join(child, STORE_MARKER)))
+            return true;
+    }
+    return false;
 }

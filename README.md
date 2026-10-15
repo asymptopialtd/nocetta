@@ -58,11 +58,18 @@ thin wrapper: everything it points at is the same MCP server and CLI below.
 }
 ```
 
-The repo root is discovered, not declared — the server walks up from its working directory to
-the nearest ancestor holding `.nocetta/` or `.git/`, the way git finds a repo — so one
-registration serves every project, and memories land in that project's `.nocetta/memory/`
-(committed to the project's git, never anywhere global). `NOCETTA_ROOT` (env) and `--root`
-(CLI) are overrides for cross-repo tooling and tests, never a requirement. The six tools'
+The store is discovered, not declared — and resolved per write, so one registration serves
+every project, and memories land in that project's `.nocetta/memory/` (committed to the
+project's git, never anywhere global). An anchored write (a `claim`/`lore-fact` with an
+`artifact_path`) routes by the file it names: the server walks up from that file to the
+nearest `.nocetta/`/`.git/`, the way git finds a repo. An unanchored write (`value`/`entity`)
+routes by the MCP client's advertised workspace roots — the sole root, or the one project repo
+among several. This means a single server launched at a parent folder of many project repos
+still routes each belief to the right project, instead of planting one shared store at the
+parent; if the project genuinely can't be told (an unanchored write with only a bare multi-repo
+parent, or several candidate projects), the write refuses rather than guess. `NOCETTA_ROOT`
+(env) and `--root` (CLI) force a single root and bypass all of this, for cross-repo tooling and
+tests — never a requirement. The six tools'
 descriptions teach themselves, and the initialize response carries the workflow contract — no
 skill files to install; project-specific rules belong in the project's own `AGENTS.md`. This
 config wires the six tools only: the hooks are an optional second layer (see Hooks below),
