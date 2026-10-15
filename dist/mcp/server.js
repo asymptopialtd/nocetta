@@ -3,11 +3,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { open } from "../facade/open.js";
-import { resolveRoot } from "../facade/root.js";
 import { INSTRUCTIONS } from "./instructions.js";
 import { ONBOARD_PROMPT } from "./onboard.js";
+import { clientRootsFrom, StoreRouter } from "./router.js";
 import { TOOLS } from "./tools.js";
 const SERVER_NAME = "nocetta";
 // src/mcp and dist/mcp both sit two levels below the package root (repo
@@ -25,14 +25,23 @@ const { version: SERVER_VERSION } = createRequire(import.meta.url)("../../packag
  * The one prompt (`onboard`) is off the six-tool cap on purpose: it is a
  * once-per-project seeding protocol, invoked on demand, not a per-session tool
  * — so it delivers a payload the always-present INSTRUCTIONS must never carry.
+ *
+ * The store is resolved PER CALL, not once at launch (router.ts): a server
+ * launched at a parent of many project repos still routes each belief to the
+ * right project's `.nocetta/`. A bare string argument forces that single root
+ * (the single-project launch and the test contract); the options form wires
+ * the per-write router, including the client's advertised workspace roots.
  */
-export function createNocettaServer(repoRoot) {
-    const nc = open(repoRoot);
+export function createNocettaServer(config) {
     const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: INSTRUCTIONS });
+    const router = typeof config === "string"
+        ? new StoreRouter({ override: config })
+        : new StoreRouter({ ...config, listRoots: clientRootsFrom(server.server) });
     for (const tool of TOOLS) {
-        server.registerTool(tool.name, { description: tool.description, inputSchema: tool.inputSchema }, (args) => ({
-            content: [{ type: "text", text: tool.run(nc, args) }],
-        }));
+        server.registerTool(tool.name, { description: tool.description, inputSchema: tool.inputSchema }, async (args) => {
+            const { nc, args: routedArgs } = await routeCall(router, tool, args);
+            return { content: [{ type: "text", text: tool.run(nc, routedArgs) }] };
+        });
     }
     server.registerPrompt("onboard", {
         title: "Seed nocetta for an existing project",
@@ -40,12 +49,36 @@ export function createNocettaServer(repoRoot) {
     }, () => ({ messages: [{ role: "user", content: { type: "text", text: ONBOARD_PROMPT } }] }));
     return server;
 }
-/** The repo root is discovered, not declared (facade/root.ts): NOCETTA_ROOT
- * when the host launches the server outside the repo, else cwd (the usual case
- * — an MCP client starts the server inside the project it's remembering for). */
+/**
+ * Pick the facade this call writes/reads against, and normalize the paths in
+ * its args to that store's root. Routing is per tool: an anchored write or a
+ * files_in_play search is self-locating (the path names the project); every
+ * other call uses the client-roots default. Tools stay pure functions of
+ * (facade, args) — this is the one place that knows a call can span projects.
+ */
+async function routeCall(router, tool, rawArgs) {
+    const args = (rawArgs ?? {});
+    if (tool.name === "memory_remember" && typeof args.artifact_path === "string" && args.artifact_path.length > 0) {
+        const { nc, artifactPath } = router.forArtifact(args.artifact_path);
+        return { nc, args: { ...args, artifact_path: artifactPath } };
+    }
+    if (tool.name === "memory_search" && Array.isArray(args.files_in_play) && args.files_in_play.length > 0) {
+        const { nc, files } = router.forFiles(args.files_in_play);
+        return { nc, args: { ...args, files_in_play: files } };
+    }
+    const { nc } = await router.forDefault();
+    return { nc, args };
+}
+/** The store is discovered per write, not declared (router.ts): NOCETTA_ROOT
+ * forces one root when set, otherwise each call routes from its own artifact
+ * path or the MCP client's advertised workspace roots, with the launch cwd as
+ * the base for relative paths and the discovery fallback. */
 export async function main() {
-    const repoRoot = process.env.NOCETTA_ROOT ?? resolveRoot();
-    const server = createNocettaServer(repoRoot);
+    const override = process.env.NOCETTA_ROOT;
+    const server = createNocettaServer({
+        base: process.cwd(),
+        ...(override !== undefined ? { override: resolve(override) } : {}),
+    });
     await server.connect(new StdioServerTransport());
 }
 // Entrypoint-and-module guard: argv[1] realpath'd through pathToFileURL so
