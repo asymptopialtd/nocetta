@@ -69,9 +69,18 @@ describe("GovKM continuity fixture: no operative-state resurrection", () => {
     });
     expect(live).toEqual([]);
 
-    // Historical reconstruction remains intact on both sides of the transition.
+    // Transaction-time reconstruction records what was written, not which
+    // supplier was valid at an arbitrary fact-time instant. B's retirement
+    // is represented by validTo, not by a separate transaction-log write.
     expect(asOf(nodes, "2026-01-15T00:00:00.000Z").map((n) => n.id)).toEqual(["supplier-a"]);
     expect(asOf(nodes, "2026-02-15T00:00:00.000Z").map((n) => n.id)).toEqual(["supplier-b"]);
-    expect(asOf(nodes, "2026-04-01T00:00:00.000Z")).toEqual([]);
+    expect(asOf(nodes, t4).map((n) => n.id)).toEqual(["supplier-b"]);
+
+    // Fact-time selection must preserve the historical operative windows.
+    const validAt = (at: string) =>
+      nodes.filter((n) => n.validFrom <= at && (n.validTo === null || at < n.validTo));
+    expect(validAt("2026-01-15T00:00:00.000Z").map((n) => n.id)).toEqual(["supplier-a"]);
+    expect(validAt("2026-02-15T00:00:00.000Z").map((n) => n.id)).toEqual(["supplier-b"]);
+    expect(validAt(t4)).toEqual([]);
   });
 });
